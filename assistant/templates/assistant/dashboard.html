@@ -3,106 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POWR AI Assistant - Dashboard</title>
+    <title>POWR AI Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        powr: { black: '#0a0a0a', dark: '#111111', gray: '#1a1a1a', muted: '#888888' }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #000; }
+        .nav-link { color: #fff; font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+        .nav-link:hover { opacity: 0.7; }
+        .btn-outline { border: 1px solid #fff; color: #fff; padding: 10px 24px; font-size: 13px; font-weight: 500; letter-spacing: 0.5px; transition: all 0.2s; }
+        .btn-outline:hover { background: #fff; color: #000; }
+        .stat-card { background: #0a0a0a; border: 1px solid #1a1a1a; }
+        .stat-card:hover { border-color: #333; }
+    </style>
 </head>
-<body class="bg-powr-black min-h-screen text-white">
-    <nav class="bg-powr-dark/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                <a href="{% url 'dashboard' %}" class="flex items-center gap-3">
-                    <span class="text-3xl font-black tracking-tight">POWR</span>
-                    <span class="text-xs font-medium text-powr-muted uppercase tracking-widest">AI Assistant</span>
-                </a>
-                <div class="flex items-center gap-4">
-                    <a href="{% url 'dashboard' %}" class="px-5 py-2.5 text-sm font-semibold text-white bg-white/10 rounded-lg">Dashboard</a>
-                    <a href="{% url 'chat' %}" class="px-5 py-2.5 text-sm font-semibold text-powr-black bg-white rounded-lg hover:bg-gray-200">Chat Simulator</a>
-                </div>
+<body class="min-h-screen text-white">
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
+            <a href="{% url 'dashboard' %}" class="text-white">
+                <svg width="120" height="32" viewBox="0 0 120 32" fill="none">
+                    <text x="0" y="24" fill="white" font-family="Inter" font-weight="700" font-size="24" font-style="italic">POWR</text>
+                </svg>
+            </a>
+            <div class="flex items-center gap-10">
+                <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
+                <a href="{% url 'chat_history' %}" class="nav-link">History</a>
+                <a href="{% url 'leads' %}" class="nav-link">Leads</a>
+                <a href="{% url 'chat' %}" class="nav-link">Chat</a>
             </div>
+            <a href="{% url 'chat' %}" class="btn-outline flex items-center gap-2">
+                <span>→</span> OPEN CHAT
+            </a>
         </div>
     </nav>
-    <main class="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-        <div class="mb-12">
-            <h1 class="text-5xl font-black tracking-tight mb-3">Dashboard</h1>
-            <p class="text-powr-muted text-lg">Real-time analytics for your WhatsApp AI Assistant</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="bg-powr-gray border border-white/10 rounded-2xl p-8 hover:border-white/20 transition-all">
-                <span class="text-powr-muted text-sm font-semibold uppercase tracking-wider">Total Messages</span>
-                <p class="text-6xl font-black my-4">{{ total_messages }}</p>
-                <p class="text-powr-muted text-sm">All conversations</p>
+
+    <main class="pt-32 pb-20 px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="text-6xl font-bold mb-4">Dashboard</h1>
+                <p class="text-gray-500 text-lg">WhatsApp AI Assistant Analytics</p>
             </div>
-            <div class="bg-powr-gray border border-emerald-500/30 rounded-2xl p-8 hover:border-emerald-500/50 transition-all">
-                <span class="text-emerald-400 text-sm font-semibold uppercase tracking-wider">Leads Created</span>
-                <p class="text-6xl font-black text-emerald-400 my-4">{{ total_leads }}</p>
-                <p class="text-powr-muted text-sm">Qualified prospects</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                <a href="{% url 'chat_history' %}" class="stat-card rounded-lg p-8 text-center transition-all block">
+                    <p class="text-gray-500 text-sm uppercase tracking-wider mb-4">Total Messages</p>
+                    <p class="text-6xl font-bold">{{ total_messages }}</p>
+                    <p class="text-gray-600 text-sm mt-4">View History →</p>
+                </a>
+                <a href="{% url 'leads' %}" class="stat-card rounded-lg p-8 text-center transition-all block" style="border-color: #166534;">
+                    <p class="text-green-500 text-sm uppercase tracking-wider mb-4">Leads Created</p>
+                    <p class="text-6xl font-bold text-green-500">{{ total_leads }}</p>
+                    <p class="text-gray-600 text-sm mt-4">View Leads →</p>
+                </a>
+                <a href="{% url 'leads' %}?escalated=yes" class="stat-card rounded-lg p-8 text-center transition-all block" style="border-color: #991b1b;">
+                    <p class="text-red-500 text-sm uppercase tracking-wider mb-4">Escalated</p>
+                    <p class="text-6xl font-bold text-red-500">{{ escalated_leads }}</p>
+                    <p class="text-gray-600 text-sm mt-4">View Escalated →</p>
+                </a>
             </div>
-            <div class="bg-powr-gray border border-red-500/30 rounded-2xl p-8 hover:border-red-500/50 transition-all">
-                <span class="text-red-400 text-sm font-semibold uppercase tracking-wider">Escalated</span>
-                <p class="text-6xl font-black text-red-400 my-4">{{ escalated_leads }}</p>
-                <p class="text-powr-muted text-sm">To sales team</p>
+
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-3xl font-bold">Recent Messages</h2>
+                <a href="{% url 'chat_history' %}" class="text-gray-500 hover:text-white text-sm">View All →</a>
             </div>
-        </div>
-        <div class="bg-powr-gray border border-white/10 rounded-2xl overflow-hidden">
-            <div class="px-8 py-6 border-b border-white/10">
-                <h2 class="text-2xl font-bold">Recent Messages</h2>
-                <p class="text-powr-muted text-sm mt-1">Last 30 conversations</p>
-            </div>
-            <div class="overflow-x-auto">
+
+            <div class="bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg overflow-hidden">
                 <table class="w-full">
-                    <thead class="bg-powr-dark/50">
-                        <tr>
-                            <th class="px-8 py-4 text-left text-xs font-bold text-powr-muted uppercase tracking-wider">Source</th>
-                            <th class="px-8 py-4 text-left text-xs font-bold text-powr-muted uppercase tracking-wider">User Message</th>
-                            <th class="px-8 py-4 text-left text-xs font-bold text-powr-muted uppercase tracking-wider">Bot Reply</th>
-                            <th class="px-8 py-4 text-left text-xs font-bold text-powr-muted uppercase tracking-wider">Time</th>
+                    <thead>
+                        <tr class="border-b border-[#1a1a1a]">
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Message</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/5">
-                        {% for message in recent_messages %}
-                        <tr class="hover:bg-white/5 transition-colors">
-                            <td class="px-8 py-5">
-                                {% if message.source == "Web Simulator" %}
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30"><span class="w-2 h-2 bg-purple-400 rounded-full"></span>WEB</span>
-                                {% else %}
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30"><span class="w-2 h-2 bg-green-400 rounded-full"></span>WHATSAPP</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-8 py-5"><p class="text-sm text-white/90 max-w-xs truncate">{{ message.body|truncatechars:50 }}</p></td>
-                            <td class="px-8 py-5"><p class="text-sm text-white/60 max-w-xs truncate">{{ message.outbound_reply|truncatechars:50|default:"—" }}</p></td>
-                            <td class="px-8 py-5"><p class="text-sm text-powr-muted">{{ message.received_at|timesince }} ago</p></td>
+                    <tbody class="divide-y divide-[#1a1a1a]">
+                        {% for msg in recent_messages %}
+                        <tr class="hover:bg-[#111]">
+                            <td class="px-6 py-4">{% if msg.source == "Web Simulator" %}<span class="text-purple-400 text-sm">WEB</span>{% else %}<span class="text-green-400 text-sm">WA</span>{% endif %}</td>
+                            <td class="px-6 py-4"><a href="{% url 'chat_detail' msg.phone %}" class="text-sm text-gray-300 hover:text-white">{{ msg.phone|truncatechars:20 }}</a></td>
+                            <td class="px-6 py-4 text-sm text-gray-400 max-w-md truncate">{{ msg.body|truncatechars:50 }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ msg.received_at|timesince }} ago</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="4" class="px-8 py-16 text-center text-powr-muted">
-                                <p class="text-xl font-bold mb-2">No messages yet</p>
-                                <p class="text-sm">Start a conversation using the <a href="{% url 'chat' %}" class="text-white underline">Chat Simulator</a></p>
-                            </td>
-                        </tr>
+                        <tr><td colspan="4" class="px-6 py-12 text-center text-gray-600">No messages yet</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
-    <footer class="border-t border-white/10 mt-16">
-        <div class="max-w-7xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between">
-            <p class="text-powr-muted text-sm">© 2024 POWR Esports. All Rights Reserved.</p>
-            <a href="https://powr.sa" target="_blank" class="text-powr-muted text-sm hover:text-white">powr.sa</a>
-        </div>
-    </footer>
+    <footer class="border-t border-[#1a1a1a] py-6"><div class="text-center text-gray-600 text-sm">© 2024 POWR Esports</div></footer>
 </body>
 </html>

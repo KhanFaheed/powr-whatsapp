@@ -37,3 +37,18 @@ class LeadRecord(models.Model):
     final_quote_sar = models.DecimalField(max_digits=12, decimal_places=2, null=True)
     escalated = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Additional Odoo CRM fields
+    phone = models.CharField(max_length=32, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    contact_name = models.CharField(max_length=200, blank=True, default="")
+    company_name = models.CharField(max_length=200, blank=True, default="")
+    expected_revenue = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    probability = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    stage = models.CharField(max_length=50, default="New")
+    description = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.brand} — {self.platform} {self.format} · Tier {self.tier}"

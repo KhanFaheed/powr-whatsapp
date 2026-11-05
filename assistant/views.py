@@ -7,11 +7,12 @@ from django.views.decorators.http import require_GET
 from django.conf import settings
 from twilio.request_validator import RequestValidator
 
-from assistant.models import InboundMessage, LeadRecord
+from assistant.models import InboundMessage, LeadRecord, ConversationState
 from assistant.services.agent import handle_message
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Q
 import json
 
 logger = logging.getLogger(__name__)
@@ -160,3 +161,96 @@ def chat_api_view(request):
     except Exception as e:
         logger.exception(f"Error in chat_api_view: {e}")
         return JsonResponse({"error": "An error occurred"}, status=500)
+
+
+# ==================== Chat History & Lead Management Views ====================
+
+def chat_history_view(request):
+    """Chat history list with search and filter."""
+    search = request.GET.get("q", "").strip()
+    source_filter = request.GET.get("source", "")
+    
+    messages = InboundMessage.objects.all()
+    
+    if search:
+        messages = messages.filter(
+            Q(body__icontains=search) | 
+            Q(outbound_reply__icontains=search) |
+            Q(phone__icontains=search)
+        )
+    
+    if source_filter:
+        messages = messages.filter(source=source_filter)
+    
+    # Group messages by phone for conversation view
+    context = {
+        "messages": messages[:100],
+        "search": search,
+        "source_filter": source_filter,
+        "total_count": messages.count(),
+    }
+    return render(request, "assistant/chat_history.html", context)
+
+
+def chat_detail_view(request, phone):
+    """Detailed chat history for a specific phone number."""
+    messages = InboundMessage.objects.filter(phone=phone).order_by("received_at")
+    conversation = ConversationState.objects.filter(phone=phone).first()
+    
+    context = {
+        "phone": phone,
+        "messages": messages,
+        "conversation": conversation,
+        "message_count": messages.count(),
+    }
+    return render(request, "assistant/chat_detail.html", context)
+
+
+def leads_view(request):
+    """Leads list with search and filter."""
+    search = request.GET.get("q", "").strip()
+    stage_filter = request.GET.get("stage", "")
+    escalated_filter = request.GET.get("escalated", "")
+    
+    leads = LeadRecord.objects.all()
+    
+    if search:
+        leads = leads.filter(
+            Q(brand__icontains=search) |
+            Q(company_name__icontains=search) |
+            Q(contact_name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(phone__icontains=search) |
+            Q(platform__icontains=search)
+        )
+    
+    if stage_filter:
+        leads = leads.filter(stage=stage_filter)
+    
+    if escalated_filter == "yes":
+        leads = leads.filter(escalated=True)
+    elif escalated_filter == "no":
+        leads = leads.filter(escalated=False)
+    
+    # Get unique stages for filter dropdown
+    stages = LeadRecord.objects.values_list("stage", flat=True).distinct()
+    
+    context = {
+        "leads": leads[:100],
+        "search": search,
+        "stage_filter": stage_filter,
+        "escalated_filter": escalated_filter,
+        "stages": list(stages),
+        "total_count": leads.count(),
+    }
+    return render(request, "assistant/leads.html", context)
+
+
+def lead_detail_view(request, lead_id):
+    """Detailed view of a single lead."""
+    lead = get_object_or_404(LeadRecord, id=lead_id)
+    
+    context = {
+        "lead": lead,
+    }
+    return render(request, "assistant/lead_detail.html", context)
