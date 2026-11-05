@@ -33,84 +33,94 @@ def ok(t): print(f"{C.G}✅ {t}{C.E}")
 def err(t): print(f"{C.R}❌ {t}{C.E}")
 def clear(ph): ConversationState.objects.filter(phone=ph).delete()
 
-def test_a():
-    """Test A: Complete request - brand, platform, duration, budget"""
-    hdr("TEST A: Complete Request")
-    info("Scenario: Brand + platform + duration + budget")
-    info("Expected: Odoo opportunity + matching quote\n")
-    
-    ph = "whatsapp:+966500000001"
+def run_session(ph, msgs):
+    """Send a sequence of messages through the agent, printing every exchange."""
     clear(ph)
-    
-    msg = "مرحبا، أنا من شركة نون. نريد حملة إعلانية على يوتيوب (تكامل) لمدة شهرين. الميزانية 100,000 ريال."
-    usr(msg)
-    print()
-    
-    try:
-        r = handle_message(ph, msg)
+    replies = []
+    for m in msgs:
+        usr(m)
+        print()
+        r = handle_message(ph, m)
         bot(r)
-        if "عرض السعر" in r or "مرجع:" in r:
-            print(); ok("TEST A PASSED: Quote + Odoo reference")
-        else:
-            print(); info("Check response manually")
-    except Exception as e:
-        err(f"Error: {e}")
-    return True
+        replies.append(r)
+        print("-" * 60)
+    return replies
+
+
+def test_a():
+    """Test A: complete request -> Odoo opportunity + price-sheet quote"""
+    hdr("TEST A: Complete Request")
+    info("Input : brand + platform + format + duration + budget (one message)")
+    info("Expect: price-sheet quote + Odoo opportunity after confirmation\n")
+
+    ph = "whatsapp:+966500000001"
+    replies = run_session(ph, [
+        "مرحبا، أنا من شركة نون. نريد حملة إعلانية على يوتيوب (تكامل) لمدة شهرين. الميزانية 100,000 ريال.",
+        "بدون خصم",
+        "اسمي نون ops@noon.com",
+        "1",
+    ])
+    final = replies[-1]
+    if "مرجع" in final or "عرض السعر" in final:
+        print(); ok("TEST A PASSED: quote issued with an Odoo reference")
+        return True
+    print(); err("TEST A FAILED: expected the final quote message")
+    return False
+
 
 def test_b():
-    """Test B: Incomplete request - missing platform/budget"""
+    """Test B: incomplete request - no platform, no budget"""
     hdr("TEST B: Incomplete Request")
-    info("Scenario: Missing platform and budget")
-    info("Expected: Bot asks questions, doesn't invent values\n")
-    
+    info("Input : brand only (no platform, no budget)")
+    info("Expect: short questions, no invented values\n")
+
     ph = "whatsapp:+966500000002"
-    clear(ph)
-    
-    msg1 = "السلام عليكم، نحن من شركة STC نريد إعلان"
-    usr(msg1)
-    print()
-    
-    try:
-        r1 = handle_message(ph, msg1)
-        bot(r1)
-        if "المنصة" in r1 or "نوع" in r1:
-            print(); ok("Bot asks for missing info")
-        
-        print("\n" + "-"*40 + "\n")
-        
-        msg2 = "نريده على إنستقرام ريل"
-        usr(msg2)
-        print()
-        
-        r2 = handle_message(ph, msg2)
-        bot(r2)
-        if "عرض السعر" in r2 or "مرجع:" in r2:
-            print(); ok("TEST B PASSED: Collected info then quoted")
-    except Exception as e:
-        err(f"Error: {e}")
-    return True
+    replies = run_session(ph, [
+        "السلام عليكم، نحن من شركة STC نريد إعلان",
+        "نريده على إنستقرام ريل",
+        "تخطي",
+        "بدون خصم",
+        "تخطي",
+        "1",
+    ])
+    first = replies[0]
+    if "المنصة" in first and "البريد" not in first:
+        print(); ok("Asks only for the missing fields (platform / format)")
+    else:
+        print(); info("Check the first reply manually")
+
+    final = replies[-1]
+    if "مرجع" in final or "عرض السعر" in final:
+        print(); ok("TEST B PASSED: collected info, then quoted")
+        return True
+    print(); err("TEST B FAILED: expected a quote after the details were given")
+    return False
+
 
 def test_c():
-    """Test C: Excessive discount - above allowed limit"""
-    hdr("TEST C: Excessive Discount")
-    info("Scenario: 30% discount (exceeds 10% limit for YT-INT-A)")
-    info("Expected: Escalated to sales, no price promised\n")
-    
+    """Test C: discount above the sheet limit -> human handover, no price"""
+    hdr("TEST C: Discount Above the Allowed Limit")
+    info("Input : YouTube integration, Tier A, 30% discount (cap is 10%)")
+    info("Expect: no price promised + escalation to a person with a summary\n")
+
     ph = "whatsapp:+966500000003"
-    clear(ph)
-    
-    msg = "مرحبا، أنا من شركة أمازون. نريد حملة يوتيوب تكامل Tier A لمدة شهر. نحتاج خصم 30%."
-    usr(msg)
-    print()
-    
-    try:
-        r = handle_message(ph, msg)
-        bot(r)
-        if "فريق المبيعات" in r or "الحد الأقصى" in r or "تحويل" in r:
-            print(); ok("TEST C PASSED: Escalated to sales team")
-    except Exception as e:
-        err(f"Error: {e}")
-    return True
+    replies = run_session(ph, [
+        "مرحبا، أنا من شركة أمازون. نريد حملة يوتيوب تكامل Tier A لمدة شهر. نحتاج خصم 30%.",
+        "اسمي أمازون sales@amazon.sa",
+        "1",
+    ])
+    summary = replies[1]
+    if "10" in summary and ("مبيعات" in summary or "sales" in summary):
+        print(); ok("Summary states the 10% cap and announces the handover")
+    else:
+        print(); info("Check the summary output manually")
+
+    final = replies[-1]
+    if "فريق المبيعات" in final or "sales team" in final:
+        print(); ok("TEST C PASSED: escalated to a human, no price promised")
+        return True
+    print(); err("TEST C FAILED: expected an escalation message")
+    return False
 
 def interactive():
     """Interactive chat mode"""
@@ -141,23 +151,27 @@ def main():
     p.add_argument('--test-all', action='store_true')
     p.add_argument('--no-pause', action='store_true', help='Skip pauses between tests')
     args = p.parse_args()
-    
+
     if args.test_all:
         hdr("Running All Tests")
-        test_a()
+        results = {"A": test_a()}
         if not args.no_pause:
             try: input(f"{C.Y}Press Enter for Test B...{C.E}")
             except EOFError: pass
         print()
-        test_b()
+        results["B"] = test_b()
         if not args.no_pause:
             try: input(f"{C.Y}Press Enter for Test C...{C.E}")
             except EOFError: pass
         print()
-        test_c()
+        results["C"] = test_c()
         hdr("All Tests Complete")
+        for name, passed in results.items():
+            (ok if passed else err)(f"Test {name}: {'PASSED' if passed else 'FAILED'}")
+        sys.exit(0 if all(results.values()) else 1)
     elif args.test:
-        {'A': test_a, 'B': test_b, 'C': test_c}[args.test.upper()]()
+        passed = {'A': test_a, 'B': test_b, 'C': test_c}[args.test.upper()]()
+        sys.exit(0 if passed else 1)
     else:
         interactive()
 

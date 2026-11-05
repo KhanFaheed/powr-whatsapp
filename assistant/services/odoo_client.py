@@ -34,7 +34,7 @@ def _get_uid():
     return uid
 
 
-def create_lead(req, quote, note=""):
+def create_lead(req, quote, note="", phone=""):
     """Create a CRM lead/opportunity in Odoo"""
     tier = quote.get("tier_used", "B")
     tier_note = " (defaulted)" if quote.get("tier_defaulted") else ""
@@ -58,6 +58,9 @@ def create_lead(req, quote, note=""):
         note,
     ]
 
+    # Clean phone number (remove whatsapp: prefix if present)
+    clean_phone = phone.replace("whatsapp:", "") if phone else ""
+
     payload = {
         "name": name,
         "partner_name": req["brand"],
@@ -65,6 +68,14 @@ def create_lead(req, quote, note=""):
         "expected_revenue": quote.get("final") or 0,
         "description": "\n".join(l for l in desc_lines if l is not None),
     }
+    
+    # Add contact info if available
+    if clean_phone:
+        payload["phone"] = clean_phone
+    if req.get("email"):
+        payload["email_from"] = req["email"]
+    if req.get("contact_name"):
+        payload["contact_name"] = req["contact_name"]
 
     # Dev mode - return mock data without calling Odoo
     if DEV_MODE:

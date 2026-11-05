@@ -1,118 +1,440 @@
-# POWR WhatsApp Bot
+# POWR — WhatsApp AI Assistant for Ad Partnership Requests
 
-A WhatsApp assistant for advertising partnership requests. Receives Arabic messages, extracts requirements, generates quotes from a price sheet, creates Odoo CRM opportunities, and handles discount escalations.
+**POWR AI Developer Practical Task — submission by Faheed**
 
-## Quick Start (Dev Mode)
+A WhatsApp assistant that receives an advertising partnership request (Arabic or English),
+reads the POWR price sheet, qualifies the lead, creates the opportunity in Odoo CRM, and
+replies with a quote that matches the sheet exactly — or hands the deal over to a human when
+it falls outside the rules.
+
+---
+
+## نبذة بالعربية
+
+مساعد واتساب ذكي يستقبل طلبات الشراكات الإعلانية بالعربية، يقرأ شيت الأسعار، يسأل عن الناقص
+فقط (بدون تخمين أي قيمة)، ينشئ الفرصة في Odoo CRM، ويرد بعرض سعر مطابق للشيت تماماً.
+وإذا كان الخصم المطلوب أعلى من الحد المسموح — أو الميزانية أقل من الحد الأدنى للباقة —
+لا يَعِد بسعر، بل يحوّل الطلب إلى موظف مبيعات مع ملخص كامل.
+
+قرارات التصميم الأساسية:
+1. **الذكاء الاصطناعي يستخرج فقط** — كل الحسابات والأسعار وحدود الخصم في كود بايثون، فلا يمكن للعرض أن يختلف عن الشيت.
+2. **لا يخترع قيماً** — الحقول غير المذكورة تبقى `null` ويسأل عنها.
+3. **التأكيد قبل إنشاء الفرصة** — لا يتم إنشاء Lead في Odoo إلا بعد موافقة العميل.
+4. **قاعدتان للتحويل البشري** — خصم فوق الحد، أو ميزانية أقل من أقل سعر ممكن.
+
+---
+
+## 1. What it does
+
+| Capability | Detail |
+|---|---|
+| **Understands Arabic + English** | LLM extraction (OpenRouter) with a strict schema; replies in the customer's language |
+| **Never invents values** | Unstated fields stay `null` and are asked for, one short question at a time |
+| **Deterministic pricing** | Price sheet, duration surcharge and discount caps are computed in Python (`price_sheet.py`) |
+| **Qualifies before quoting** | Asks budget → discount → contact details → shows a summary → waits for confirmation |
+| **Creates the CRM record once** | Odoo opportunity created only after the customer confirms (no pipeline pollution) |
+| **Two human-handover rules** | (a) discount above the package cap, (b) budget below the cheapest achievable price |
+| **Operator layer** | Analytics dashboard, searchable chat history (with bot replies), lead browser mirroring the Odoo fields |
+
+---
+
+## 2. Deliverables (per the task email)
+
+| Deliverable | Where |
+|---|---|
+| **Video** running the three test cases | `VIDEO_SCRIPT.md` (shot-by-shot script used to record it) |
+| **One-page write-up of the design** | Section [5. Design decisions](#5-design-decisions--trade-offs) below, and `DESIGN.md` |
+| **Code / flow file** | This repository (`assistant/` app) |
+
+---
+
+## 3. The three test cases — reproduce in order
+
+All three can be run in the browser at **`http://localhost:8000/chat/`** (no Twilio needed),
+or against the real WhatsApp webhook at `/webhook/`.
+
+### Case A — clear request (brand + platform + duration + budget)
+
+```
+You: مرحبا، أنا من شركة نون. نريد حملة إعلانية على يوتيوب (تكامل) لمدة شهرين. الميزانية 100,000 ريال.
+Bot: 📊 YouTube — Integration · Tier B
+     • Duration: 60 days
+     • Estimated price: 54,000 SAR          ← YT-INT-B: 45,000 + 20% for the 2nd month
+     Now, what's your approximate budget in SAR? … ✓ (already provided → skipped)
+You: بدون خصم
+Bot: Would you like to request a discount? → ✓ 0%
+You: اسمي نون ops@noon.com
+Bot: 📋 Quote summary … 💰 Total: 54,000 SAR  ✅ Within your budget (100,000 SAR)
+     1️⃣ Yes  2️⃣ Discount  3️⃣ Cancel
+You: 1
+Bot: 📋 Your Quote (YT-INT-B) … 📝 Reference: #<odoo lead id>
+```
+
+**Expected:** one opportunity in Odoo with brand, expected revenue `54,000`, phone, email and the
+full quote breakdown in the description; the reply carries the reference number.
+
+### Case B — incomplete request (no platform, no budget)
+
+```
+You: السلام عليكم، نحن من شركة STC نريد إعلان
+Bot: • Which platform? (YouTube, Instagram, TikTok, Snapchat, X)
+     • What type of content?
+     ✓ Brand: STC                        ← asks ONLY for what is missing
+You: نريده على إنستقرام ريل
+Bot: 📊 Instagram — Reel · Tier B … (estimated 18,000 SAR) … what's your budget?
+You: تخطي                               ← skipping the budget is allowed
+Bot: Would you like to request a discount?
+You: بدون خصم
+Bot: 📇 contact details…
+You: تخطي
+Bot: 📋 Quote summary … Total: 18,000 SAR (no budget line, because none was given)
+```
+
+**Expected:** it asks short questions and carries on. **Nothing is invented** — no budget, no
+duration, and no tier price are fabricated; the missing values stay empty.
+
+### Case C — discount above the limit
+
+```
+You: مرحبا، أنا من شركة أمازون. نريد حملة يوتيوب تكامل Tier A لمدة شهر. نحتاج خصم 30%.
+Bot: 📇 Almost done! I need your contact details…     ← no price is quoted at all
+You: اسمي أمازون sales@amazon.sa
+Bot: 📋 Quote summary
+     • Requested discount: 30%
+     ⚠️ The maximum discount for this package is 10%.
+     Your request will be forwarded to our sales team for review.
+You: 1
+Bot: 🤝 Connecting you with our sales team (human support)
+     • Platform: YouTube   • Format: Integration   • Duration: 30 days
+     • Requested discount: 30% (maximum 10%)
+     ⚠️ The requested discount is above the maximum of 10%.
+     📝 Reference: #<id>   ⏱️ We usually respond within 24 hours.
+```
+
+**Expected:** no price is promised; the customer is handed over to a person with a full summary.
+The Odoo lead is created with **`ESCALATED — 30.0% > cap 10%`** written into the description,
+and appears on `/leads/?escalated=yes` with a red **ESCALATED** badge.
+
+---
+
+## 4. Architecture
+
+```
+WhatsApp user
+     │  message
+     ▼
+Twilio WhatsApp  ──►  POST /webhook/            (assistant/views.py)
+                          │  • signature validation (skipped only in DEBUG)
+                          │  • idempotency on MessageSid
+                          ▼
+                    InboundMessage row  ──►  handle_message(phone, text)   (services/agent.py)
+                          │
+                          │  1. extract(text, context)      → services/extractor.py  (OpenRouter LLM)
+                          │  2. merge with ConversationState (per-phone memory in DB)
+                          │  3. build_quote(...)            → services/price_sheet.py (pure Python)
+                          │  4. decide: ask / quote / escalate
+                          ▼
+                    create_lead(...)  ──►  Odoo CRM via XML-RPC   (services/odoo_client.py)
+                          │
+                          ▼
+                    LeadRecord row (local mirror for the dashboard)
+                          │
+                          ▼
+                    TwiML reply / JSON reply  ──►  WhatsApp
+```
+
+### Components
+
+| File | Responsibility |
+|---|---|
+| `assistant/views.py` | Twilio webhook (signature, idempotency, TwiML), chat API, dashboard/history/leads views |
+| `assistant/services/extractor.py` | LLM extraction to a strict Pydantic schema; context-aware; 3-model fallback |
+| `assistant/services/price_sheet.py` | **Single source of truth for money**: base price, duration surcharge, discount caps |
+| `assistant/services/agent.py` | Conversation state machine + reply formatting (bilingual) + escalation rules |
+| `assistant/services/odoo_client.py` | Odoo XML-RPC `crm.lead` creation, `DEV_MODE` mock |
+| `assistant/models.py` | `InboundMessage`, `ConversationState`, `LeadRecord` |
+| `assistant/tasks/process_message.py` | Optional Celery path for async replies (content templates) |
+
+### Conversation state machine
+
+```
+collect ──► budget ──► discount ──► contact ──► confirm ──► create lead
+   │            │           │           │           │
+   │            │           │           │           └─ 1 yes · 2 discount · 3 cancel
+   │            │           │           └─ full name + email (phone comes from WhatsApp)
+   │            │           └─ "X%" · "no discount" · "0"
+   │            └─ budget in SAR + optional duration change ("60 days")
+   └─ brand · platform · format  (asks only the missing ones)
+
+Short-circuit: if the discount is already above the cap, budget/discount
+questions are skipped and the flow jumps to contact → summary → handover.
+```
+
+---
+
+## 5. Design decisions & trade-offs
+
+**1. The LLM extracts, Python calculates.**
+The model is only allowed to *read* the message into a fixed JSON schema
+(`brand`, `platform`, `format`, `tier`, `days`, `budget`, `discount`, `contact`, `email`).
+Every riyal is computed by `price_sheet.py`. This is the reason the quote can never drift from
+the sheet, and it makes the money logic unit-testable without any network call.
+
+**2. Never invent a value.**
+The prompt forbids guessing and every field is nullable. The agent then asks for the *missing*
+fields only, and echoes what it already understood (`✓ Brand: STC`) so the customer can correct it.
+Skipping is always allowed (`skip` / `تخطي`), and a skipped field stays `null` — it does **not**
+become `0`, which is what usually produces wrong quotes in these bots.
+
+**3. Ask, don't assume — but don't interrogate.**
+Required fields are only `brand`, `platform`, `format`. Budget, discount, duration and contact
+are *qualifying* questions asked in one short message each; the flow never asks for something
+the customer already said in the same message (Case A skips the budget question).
+
+**4. Confirm before writing to the CRM.**
+A quote is a conversation, not a commitment. The lead is created only after the customer replies
+`1` / `yes` / `نعم`. This keeps the Odoo pipeline clean and gives a natural place to insert the
+human-handover branch. Trade-off: one extra turn — accepted deliberately.
+
+**5. Two escalation rules, both explicit.**
+- **Discount above cap** → the bot must not promise a price (Case C).
+- **Budget below the minimum** → if even the *maximum* allowed discount cannot reach the budget,
+  quoting is pointless, so it hands over with the numbers that justify the handover
+  (e.g. *"budget 5,000 SAR vs best possible 8,000 SAR, max discount 20%"*).
+
+The escalation reason is written into the Odoo lead description and flagged
+`escalated=True`, `stage=Escalated`, probability 5 % so sales can triage.
+
+**6. Language is a property of the conversation, not of the message.**
+Script detection decides per message, but for ambiguous input (`1`, `60 days`, mixed
+Arabic+email) the conversation keeps its established language. This prevents the classic bug of
+an Arabic customer getting an English confirmation because they answered "1".
+
+**7. Deterministic plumbing around a non-deterministic brain.**
+Platform/format normalisation and a brand fallback ("tanmay.com" typed as an answer) live in
+code, so a model hiccup degrades gracefully instead of looping the same question.
+
+**8. Security by default.**
+All secrets come from environment variables (`.env`, never committed; `.env.example` documents
+names only). Twilio requests are signature-validated, the webhook is idempotent on `MessageSid`,
+and CSRF protection stays on for every page — only the signed webhook and the JSON chat endpoint
+are exempt.
+
+**9. Validation is a hard gate (Pydantic).**
+`assistant/services/schemas.py` is the only place where a value becomes "real".
+It normalises and validates three things: the raw LLM output (`ExtractedRequest`),
+the contact details (`ContactInfo`) and — as the last gate before money and CRM calls —
+the exact values the price sheet receives (`QuoteRequest`).
+So `"Yotube"` → `youtube`, `"Tier A (10M+ subscribers)"` → `A`, `"100,000 SAR"` → `100000`,
+`"30%"` → `30`, `900 days` → `None` (asks again), `"null"`/`"غير محدد"` → `None`,
+and `"ali@x"` → `None` (re-asks for the email instead of storing a broken address).
+An impossible request can never reach `build_quote()` or Odoo — it is rejected with a
+friendly question instead of producing a wrong quote.
+
+**Known trade-offs**
+- The state machine is deliberately small (one dictionary per phone) rather than a workflow engine.
+- The dashboard has no authentication — it is an operator tool for local/internal use; in
+  production it would sit behind SSO or Django auth.
+- Arabic dialect tuning is prompt-level; a production build would add a golden-set evaluation.
+
+
+
+---
+
+## 6. The price sheet (`assistant/services/price_sheet.py`)
+
+| Code | Platform | Format | Tier | Base (SAR) | Days included | Extra 30d | Max discount |
+|---|---|---|---|---|---|---|---|
+| `YT-INT-A` | YouTube | Integration | A | 90,000 | 30 | +20 % | 10 % |
+| `YT-INT-B` | YouTube | Integration | B | 45,000 | 30 | +20 % | 15 % |
+| `YT-INT-C` | YouTube | Integration | C | 20,000 | 30 | +20 % | 15 % |
+| `YT-DED-A` | YouTube | Dedicated | A | 200,000 | 30 | +20 % | 10 % |
+| `YT-DED-B` | YouTube | Dedicated | B | 100,000 | 30 | +20 % | 10 % |
+| `SC-STR-A` | Snapchat | Story | A | 30,000 | 30 | +20 % | 15 % |
+| `SC-STR-B` | Snapchat | Story | B | 15,000 | 30 | +20 % | 20 % |
+| `IG-REEL-A` | Instagram | Reel | A | 35,000 | 30 | +20 % | 15 % |
+| `IG-REEL-B` | Instagram | Reel | B | 18,000 | 30 | +20 % | 20 % |
+| `TT-VID-A` | TikTok | Video | A | 30,000 | 30 | +20 % | 15 % |
+| `TT-VID-B` | TikTok | Video | B | 15,000 | 30 | +20 % | 20 % |
+| `X-POST-A` | X | Post | A | 10,000 | 30 | +20 % | 20 % |
+
+**Quote formula**
+
+```
+multiplier = 1 + ceil(max(0, requested_days - 30) / 30) × 0.20
+gross      = base × multiplier
+final      = gross × (1 - requested_discount_pct / 100)
+
+if requested_discount_pct > row.max_discount_pct  →  status = ESCALATE   (no price issued)
+if no row for (platform, format, tier)            →  status = UNKNOWN    (asks for an alternative)
+otherwise                                          →  status = OK
+```
+
+Tier defaults to **B** when the customer doesn't state one (the quote labels it `(default)`).
+The same row also decides the *human* escalation: if `gross × (1 - max_discount/100)` is still
+above the customer's budget, the deal goes to sales instead of being quoted.
+
+Worked examples:
+- YouTube Integration, 60 days, Tier B → `45,000 × 1.20 = 54,000` (Case A)
+- YouTube Integration, 30 days, Tier A, 30 % requested → cap 10 % → **ESCALATE** (Case C)
+- Instagram Reel, 30 days, Tier B → `18,000` (Case B)
+
+---
+
+## 7. Setup
 
 ```bash
-# 1. Clone and setup
-cd powr-whatsapp
-python -m venv .venv
-source .venv/bin/activate
+git clone <this repo> && cd powr-whatsapp
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Copy env and configure
-cp .env.example .env
-# Edit .env with your OpenRouter API key
-
-# 3. Run migrations
+cp .env.example .env          # then fill in the values (see §8)
 python manage.py migrate
-
-# 4. Test all three cases
-python dev_test.py --test-all --no-pause
+python manage.py createsuperuser   # optional, for /admin
+python manage.py runserver 8000
 ```
 
-## Test Cases
+Then open:
 
-### A) Complete Request
-```
-User: مرحبا، أنا من شركة نون. نريد حملة إعلانية على يوتيوب (تكامل) لمدة شهرين. الميزانية 100,000 ريال.
-Bot: [Quote with Odoo reference]
-```
+| URL | What |
+|---|---|
+| `http://localhost:8000/` | Analytics dashboard (homepage) |
+| `http://localhost:8000/chat/` | **Chat simulator** — run the three test cases without Twilio |
+| `http://localhost:8000/history/` | Chat history + per-conversation view (stores bot replies too) |
+| `http://localhost:8000/leads/` | Leads, filter by stage / escalation |
+| `http://localhost:8000/admin/` | Django admin |
+| `http://localhost:8000/health/` | `ok` (for your load balancer) |
+| `POST /webhook/` | Twilio WhatsApp webhook |
+| `POST /api/chat/` | JSON endpoint used by the simulator |
 
-### B) Incomplete Request
-```
-User: السلام عليكم، نحن من شركة STC نريد إعلان
-Bot: [Asks for platform and format]
-User: نريده على إنستقرام ريل
-Bot: [Quote with Odoo reference]
-```
-
-### C) Excessive Discount
-```
-User: مرحبا، أنا من شركة أمازون. نريد حملة يوتيوب تكامل Tier A لمدة شهر. نحتاج خصم 30%.
-Bot: [Escalated to sales team, no price promised]
-```
-
-## Interactive Testing
+**Two ways to test the webhook without WhatsApp:**
 
 ```bash
-python dev_test.py
-# Then type messages in Arabic/English
-# Type 'reset' to clear state, 'quit' to exit
+# a) the built-in CLI harness (runs cases A, B, C end to end)
+python dev_test.py --test-all
+
+# b) a real HTTP call to the Twilio endpoint
+curl -X POST http://localhost:8000/webhook/ \
+  -d "MessageSid=SM-demo-1" \
+  -d "From=whatsapp:+966500000001" \
+  --data-urlencode "Body=مرحبا، أنا من شركة نون. نريد حملة على يوتيوب تكامل لمدة شهرين. الميزانية 100,000 ريال."
 ```
 
-## Production Setup
+`DEV_MODE=true` makes the Odoo client return a mock lead id (no CRM calls), so you can demo the
+whole flow without an Odoo account. **The video was recorded with `DEV_MODE=false`** so the
+opportunity is visible in the real Odoo trial.
 
-### 1. Odoo Trial
-1. Go to https://www.odoo.com/trial
-2. Select CRM app
-3. Note your URL (e.g., `https://yourcompany.odoo.com`)
-4. Go to Settings → Users → Your User → API Keys
-5. Generate an API key
+---
 
-### 2. Update .env
+## 8. Environment variables
+
+Nothing secret is committed — `.env.example` lists the names only.
+
+| Variable | Purpose | Where to get it |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Django signing key | generate: `python -c "import secrets;print(secrets.token_urlsafe(50))"` |
+| `DJANGO_DEBUG` | `true` locally, `false` in production | — |
+| `DJANGO_ALLOWED_HOSTS` | comma-separated hosts | your domain |
+| `DATABASE_URL` | DB connection (`sqlite:///db.sqlite3` locally) | — |
+| `REDIS_URL` | Celery broker (only for the async path) | `redis://localhost:6379/0` |
+| `OPENROUTER_API_KEY` | LLM extraction | https://openrouter.ai/keys |
+| `ODOO_URL` | Odoo base URL | your Odoo trial, e.g. `https://acme.odoo.com` |
+| `ODOO_DB` | Odoo database name | trial subdomain name |
+| `ODOO_USERNAME` | Odoo login (email) | — |
+| `ODOO_API_KEY` | Odoo API key (**not** your password) | Odoo → Preferences → Account Security → New API Key |
+| `DEV_MODE` | `true` = mock Odoo, `false` = real CRM | — |
+| `TWILIO_ACCOUNT_SID` | Twilio account | Twilio Console |
+| `TWILIO_AUTH_TOKEN` | used to validate webhook signatures | Twilio Console |
+| `TWILIO_WHATSAPP_FROM` | sandbox/production sender | Twilio WhatsApp Sandbox |
+| `WHATSAPP_SYNC_MODE` | `true` = reply inline with TwiML, `false` = Celery + content templates | — |
+
+### Odoo trial setup (5 minutes)
+
+1. Create a trial at https://www.odoo.com/trial and install **CRM**.
+2. Preferences → Account Security → **New API Key** → copy it into `ODOO_API_KEY`.
+3. `ODOO_URL=https://<your-trial>.odoo.com`, `ODOO_DB=<your-trial>`, `ODOO_USERNAME=<login email>`.
+4. Set `DEV_MODE=false` and run case A — the opportunity appears in **CRM → Pipeline**.
+
+---
+
+## 9. Security
+
+- **No secrets in code or in chat.** Everything is read from the environment; `.env` is git-ignored
+  and `.env.example` contains placeholders only.
+- **Twilio signature validation** on every webhook call (`RequestValidator`); it is skipped *only*
+  when `DEBUG=True` so local curl testing works.
+- **Idempotency**: the webhook stores `MessageSid` as a unique key, so Twilio retries never create
+  duplicate messages or duplicate leads.
+- **CSRF** enabled site-wide; only the signature-validated webhook and the JSON chat endpoint are
+  `csrf_exempt`.
+- **Least privilege**: the Odoo API key is a user key that can be revoked at any time; the bot only
+  calls `crm.lead:create`.
+- **No PII in logs**: only phone numbers and reply previews are logged.
+
+---
+
+## 10. Testing
+
 ```bash
-DEV_MODE=false
-ODOO_URL=https://yourcompany.odoo.com
-ODOO_DB=yourcompany
-ODOO_USERNAME=your-email@example.com
-ODOO_API_KEY=your-api-key
+python manage.py test assistant   # 23 unit + flow tests (validation, pricing, state machine)
+python dev_test.py --test-all     # cases A, B, C through the real agent (exit code 0/1)
+python dev_test.py --test A       # single case
+python dev_test.py                # interactive REPL — 'reset' clears state, 'quit' exits
+python manage.py check            # Django system checks
 ```
 
-### 3. Run with Celery
-```bash
-# Terminal 1: Redis
-redis-server
+`python manage.py test assistant` runs the regression suite: platform/format/tier
+normalisation, numeric coercion, email validation, `QuoteRequest` gating, the price-sheet
+formulas for cases A/B/C, and the conversation flow (including "name-only answer re-asks for
+the email", "bare *yes* at the discount step asks for the percentage", and "no lead is created
+before confirmation"). It needs no network access and no Odoo — the LLM is stubbed.
 
-# Terminal 2: Celery worker
-celery -A config worker -l info
+`dev_test.py` drives the **real** `handle_message()` (same code path as WhatsApp) and prints the
+full transcript, so it doubles as a regression harness for the conversation flow.
 
-# Terminal 3: Django server
-python manage.py runserver
+---
 
-# Terminal 4: Expose webhook (for WhatsApp)
-ngrok http 8000
-```
+## 11. Limitations & next steps
 
-### 4. Configure Twilio
-1. Go to Twilio Console → Messaging → WhatsApp Sandbox
-2. Set webhook URL: `https://your-ngrok-url.ngrok.io/webhook/`
-3. Send test message to sandbox number
+| Area | Now | Next |
+|---|---|---|
+| WhatsApp 24-hour window | Inline TwiML reply | Approved content templates for outbound-after-24h (async mode is already wired for it) |
+| Arabic dialects | Prompt-level instructions + Arabic examples | Golden-set evaluation (Gulf/Hijazi) with extraction accuracy metrics |
+| Operator UI | No auth (internal tool) | Put `/`, `/history/`, `/leads/` behind SSO/Django auth |
+| Persistence | SQLite in dev | Postgres (`DATABASE_URL`) + Celery/Redis for scale |
+| Pricing | Hard-coded sheet module | Load the official sheet from a DB table or Google Sheet with versioning |
+| Media | Text only | Handle images/voice notes (transcription) via Twilio media URLs |
 
-## Project Structure
+---
+
+## 12. Project structure
 
 ```
 powr-whatsapp/
 ├── assistant/
 │   ├── services/
-│   │   ├── agent.py         # Main orchestration
-│   │   ├── extractor.py     # AI extraction (OpenRouter)
-│   │   ├── price_sheet.py   # Quote logic
-│   │   ├── odoo_client.py   # CRM integration
-│   │   └── twilio_client.py # WhatsApp sending
-│   ├── tasks/
-│   │   └── process_message.py  # Celery task
-│   ├── models.py            # DB models
-│   └── views.py             # Webhook endpoint
-├── config/
-│   ├── settings.py
-│   └── celery.py
-├── dev_test.py              # CLI testing tool
-├── DESIGN.md                # Architecture doc
-└── .env.example             # Environment template
+│   │   ├── agent.py           # conversation state machine + escalation rules + replies
+│   │   ├── schemas.py         # Pydantic validation gate (LLM output, contact, quote input)
+│   │   ├── extractor.py       # LLM → strict JSON schema (OpenRouter, 3-model fallback)
+│   │   ├── price_sheet.py     # price sheet + quote maths (single source of truth)
+│   │   ├── odoo_client.py     # crm.lead creation over XML-RPC (+ DEV_MODE mock)
+│   │   └── twilio_client.py   # outbound WhatsApp messages (async mode)
+│   ├── tasks/process_message.py   # Celery task (async mode)
+│   ├── templates/assistant/   # base, dashboard, chat, history, detail, leads
+│   ├── models.py              # InboundMessage · ConversationState · LeadRecord
+│   ├── views.py               # webhook, chat API, dashboard/history/leads
+│   └── urls.py
+├── config/                    # settings, urls, celery
+├── dev_test.py                # CLI harness for cases A/B/C
+├── DESIGN.md                  # architecture write-up
+├── VIDEO_SCRIPT.md            # shot-by-shot script used to record the demo
+└── .env.example               # environment template (no secrets)
 ```
 
-## License
+---
 
-MIT
+## 13. Author
+
+**Faheed** — submitted for the POWR AI Developer practical task.
+Built with Django 5 · Twilio WhatsApp · OpenRouter LLMs · Odoo CRM (XML-RPC) · Tailwind CSS.
+

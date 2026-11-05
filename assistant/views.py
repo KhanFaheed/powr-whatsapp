@@ -80,15 +80,17 @@ def whatsapp_webhook(request):
         try:
             reply = handle_message(phone, body)
             inbound.status = "PROCESSED"
-            inbound.save(update_fields=["status"])
+            inbound.outbound_reply = reply  # Save the bot's reply for chat history
+            inbound.save(update_fields=["status", "outbound_reply"])
             logger.info(f"Reply to {phone}: {reply[:50]}...")
             return HttpResponse(make_twiml_response(reply), content_type="text/xml; charset=utf-8")
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
             inbound.status = "FAILED"
             inbound.error = str(e)
-            inbound.save(update_fields=["status", "error"])
             error_msg = "عذراً، حدث خطأ. يرجى المحاولة مرة أخرى."
+            inbound.outbound_reply = error_msg  # Save error reply too
+            inbound.save(update_fields=["status", "error", "outbound_reply"])
             return HttpResponse(make_twiml_response(error_msg), content_type="text/xml; charset=utf-8")
     else:
         # Async mode - use Celery (requires Content Templates for replies)

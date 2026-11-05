@@ -1,0 +1,247 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}POWR AI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { DEFAULT: '#ea0f16', hover: '#c90d13', soft: '#ff3b41', tint: '#fff1f2' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        glow: '0 0 48px rgba(234,15,22,.28)',
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+        /* Apply the stored theme before first paint (avoids a flash) */
+        (function () {
+            try {
+                var t = localStorage.getItem('powr-theme') || 'dark';
+                document.documentElement.classList.toggle('dark', t === 'dark');
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --bg-grad: radial-gradient(1200px 500px at 50% -10%, #ffe9ea 0%, transparent 60%);
+            --surface: #ffffff;
+            --surface-2: #fafafb;
+            --border: rgba(9, 9, 11, .10);
+            --border-strong: rgba(9, 9, 11, .16);
+            --text: #101014;
+            --muted: #63636d;
+            --hover: rgba(9, 9, 11, .045);
+            --nav: rgba(255, 255, 255, .82);
+            --ring: rgba(234, 15, 22, .22);
+        }
+        html.dark {
+            --bg: #08080a;
+            --bg-grad: radial-gradient(1200px 520px at 50% -12%, rgba(234, 15, 22, .18) 0%, transparent 62%);
+            --surface: #0e0e12;
+            --surface-2: #15151b;
+            --border: rgba(255, 255, 255, .09);
+            --border-strong: rgba(255, 255, 255, .16);
+            --text: #f4f4f6;
+            --muted: #8a8a95;
+            --hover: rgba(255, 255, 255, .055);
+            --nav: rgba(8, 8, 10, .78);
+            --ring: rgba(234, 15, 22, .35);
+        }
+        html { color-scheme: light; }
+        html.dark { color-scheme: dark; }
+        body {
+            background-color: var(--bg);
+            background-image: var(--bg-grad);
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: Inter, system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            transition: background-color .3s ease, color .3s ease;
+        }
+        .surface { background: var(--surface); border: 1px solid var(--border); }
+        .muted { color: var(--muted); }
+        .hairline { border-color: var(--border); }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            box-shadow: 0 1px 2px rgba(9,9,11,.04), 0 12px 32px -20px rgba(9,9,11,.35);
+            transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+        }
+        html.dark .card { box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 18px 40px -24px rgba(0,0,0,.9); }
+        .card-hover:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+        .input, .select {
+            width: 100%;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: .7rem;
+            padding: .65rem .9rem;
+            font-size: .875rem;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .input::placeholder { color: var(--muted); }
+        .input:focus, .select:focus {
+            outline: none;
+            border-color: #ea0f16;
+            box-shadow: 0 0 0 3px var(--ring);
+        }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+            border-radius: .7rem; padding: .6rem 1.1rem;
+            font-size: .8125rem; font-weight: 600; letter-spacing: .01em;
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .15s ease;
+            cursor: pointer;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: #ea0f16; color: #fff; box-shadow: 0 6px 20px -10px rgba(234,15,22,.9); }
+        .btn-primary:hover { background: #c90d13; }
+        .btn-ghost { border: 1px solid var(--border); color: var(--text); background: transparent; }
+        .btn-ghost:hover { background: var(--hover); border-color: var(--border-strong); }
+        .icon-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 2.4rem; height: 2.4rem; border-radius: .7rem;
+            border: 1px solid var(--border); color: var(--text); background: transparent;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+        }
+        .icon-btn:hover { background: var(--hover); border-color: var(--border-strong); color: #ea0f16; }
+        .nav-shell {
+            background: var(--nav);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: saturate(160%) blur(14px);
+            -webkit-backdrop-filter: saturate(160%) blur(14px);
+        }
+        .nav-link {
+            position: relative; padding: .45rem .15rem;
+            font-size: .8125rem; font-weight: 600;
+            color: var(--muted); transition: color .15s ease;
+        }
+        .nav-link:hover, .nav-link.is-active { color: var(--text); }
+        .nav-link.is-active::after {
+            content: ""; position: absolute; left: 0; right: 0; bottom: -.4rem; height: 2px;
+            background: #ea0f16; border-radius: 2px;
+        }
+        .badge {
+            display: inline-flex; align-items: center; gap: .35rem;
+            border-radius: 999px; padding: .2rem .6rem;
+            font-size: .6875rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+            border: 1px solid transparent; white-space: nowrap;
+        }
+        .badge-red { background: rgba(234,15,22,.12); color: #ea0f16; border-color: rgba(234,15,22,.28); }
+        html.dark .badge-red { color: #ff5a5f; }
+        .badge-green { background: rgba(16,185,129,.12); color: #059669; border-color: rgba(16,185,129,.28); }
+        html.dark .badge-green { color: #34d399; }
+        .badge-purple { background: rgba(168,85,247,.12); color: #9333ea; border-color: rgba(168,85,247,.28); }
+        html.dark .badge-purple { color: #c084fc; }
+        .badge-muted { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+        table.data { width: 100%; border-collapse: collapse; font-size: .875rem; }
+        table.data thead th {
+            text-align: left; padding: .85rem 1.25rem;
+            font-size: .6875rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+            color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        table.data tbody td { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        table.data tbody tr:last-child td { border-bottom: 0; }
+        table.data tbody tr { transition: background-color .12s ease; }
+        table.data tbody tr:hover { background: var(--hover); }
+        .stat-num { font-family: 'Space Grotesk', Inter, sans-serif; letter-spacing: -.02em; line-height: 1; }
+        .clamp-1 { display: block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .chat-scroll::-webkit-scrollbar { width: 6px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+        html.dark .theme-sun { display: none; }
+        html:not(.dark) .theme-moon { display: none; }
+        .bar { height: .375rem; border-radius: 999px; background: var(--border); overflow: hidden; }
+        .bar > span { display: block; height: 100%; border-radius: 999px; background: #ea0f16; }
+        @media (max-width: 767px) { .clamp-1 { max-width: 12rem; } }
+    </style>
+</head>
+<body class="min-h-screen antialiased">
+    <!-- ===================== Top navigation ===================== -->
+    <header class="nav-shell fixed inset-x-0 top-0 z-50">
+        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
+            <a href="{% url 'dashboard' %}" class="group flex items-baseline gap-2.5">
+                <span class="font-display text-[1.45rem] font-bold italic leading-none tracking-tight transition-opacity group-hover:opacity-80" style="color:#ea0f16">POWR</span>
+                <span class="hidden text-[0.65rem] font-semibold uppercase tracking-[0.18em] muted sm:inline">AI Assistant</span>
+            </a>
+
+            <nav class="hidden items-center gap-7 md:flex">
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Dashboard</a>
+                <a href="{% url 'chat_history' %}" class="nav-link {% if request.resolver_match.url_name == 'chat_history' or request.resolver_match.url_name == 'chat_detail' %}is-active{% endif %}">History</a>
+                <a href="{% url 'leads' %}" class="nav-link {% if request.resolver_match.url_name == 'leads' or request.resolver_match.url_name == 'lead_detail' %}is-active{% endif %}">Leads</a>
+                <a href="{% url 'chat' %}" class="nav-link {% if request.resolver_match.url_name == 'chat' %}is-active{% endif %}">Simulator</a>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark / light mode">
+                    <svg class="theme-moon h-[1.15rem] w-[1.15rem]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                    </svg>
+                    <svg class="theme-sun h-[1.15rem] w-[1.15rem]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="4.2"/>
+                        <path stroke-linecap="round" d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/>
+                    </svg>
+                </button>
+                <a href="{% url 'chat' %}" class="btn btn-primary hidden sm:inline-flex">
+                    <span>Open Chat</span>
+                    <svg class="h-[0.9rem] w-[0.9rem]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h13M13 6l7 6-7 6"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+        <!-- Mobile navigation -->
+        <nav class="flex items-center gap-6 overflow-x-auto border-t hairline px-5 py-2.5 md:hidden">
+            <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Dashboard</a>
+            <a href="{% url 'chat_history' %}" class="nav-link {% if request.resolver_match.url_name == 'chat_history' or request.resolver_match.url_name == 'chat_detail' %}is-active{% endif %}">History</a>
+            <a href="{% url 'leads' %}" class="nav-link {% if request.resolver_match.url_name == 'leads' or request.resolver_match.url_name == 'lead_detail' %}is-active{% endif %}">Leads</a>
+            <a href="{% url 'chat' %}" class="nav-link {% if request.resolver_match.url_name == 'chat' %}is-active{% endif %}">Simulator</a>
+        </nav>
+    </header>
+
+    <main class="mx-auto w-full max-w-7xl px-5 pb-20 pt-32 sm:px-8 md:pt-28">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-t hairline">
+        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-xs sm:flex-row sm:px-8">
+            <p class="muted">© {% now "Y" %} POWR Esports. All rights reserved.</p>
+            <div class="flex items-center gap-4">
+                <a href="https://powr.sa" target="_blank" rel="noopener" class="muted transition-colors hover:text-[#ea0f16]">powr.sa</a>
+                <span class="muted">·</span>
+                <span class="muted">WhatsApp AI Assistant</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+                var isDark = root.classList.toggle('dark');
+                try { localStorage.setItem('powr-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+            });
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

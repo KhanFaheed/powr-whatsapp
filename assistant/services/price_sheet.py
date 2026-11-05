@@ -1,6 +1,25 @@
 import math
 from typing import Optional
 
+# Official sheet labels (from the POWR price sheet) so quotes, Odoo descriptions
+# and the UI use POWR's own wording.
+FORMAT_LABELS = {
+    "integration": "Integration (60-90 sec inside a video)",
+    "dedicated": "Dedicated video",
+    "story": "Story (3 snaps)",
+    "reel": "Reel",
+    "video": "Video",
+    "post": "Post",
+}
+
+TIER_LABELS = {
+    "youtube": {"A": "Tier A (10M+ subscribers)", "B": "Tier B (3M-10M subscribers)", "C": "Tier C (under 3M subscribers)"},
+    "snapchat": {"A": "Tier A (10M+ followers)", "B": "Tier B (under 10M followers)"},
+    "instagram": {"A": "Tier A (10M+ followers)", "B": "Tier B (under 10M followers)"},
+    "tiktok": {"A": "Tier A (10M+ followers)", "B": "Tier B (under 10M followers)"},
+    "x": {"A": "Tier A (5M+ followers)"},
+}
+
 PRICE_SHEET = [
     {"code": "YT-INT-A",  "platform": "youtube",   "format": "integration", "tier": "A", "price_sar": 90000,  "usage_days_included": 30, "extra_30_days_pct": 20, "max_discount_pct": 10},
     {"code": "YT-INT-B",  "platform": "youtube",   "format": "integration", "tier": "B", "price_sar": 45000,  "usage_days_included": 30, "extra_30_days_pct": 20, "max_discount_pct": 15},
@@ -17,6 +36,16 @@ PRICE_SHEET = [
 ]
 
 DEFAULT_TIER = "B"
+
+
+def describe_row(platform, format_, tier):
+    """Human description of a sheet row, using the official sheet wording."""
+    fmt_label = FORMAT_LABELS.get((format_ or "").lower(), (format_ or "").title())
+    tier_label = TIER_LABELS.get((platform or "").lower(), {}).get(
+        (tier or "").upper(), f"Tier {tier}"
+    )
+    return f"{fmt_label} · {tier_label}"
+
 
 
 def lookup_row(platform, format_, tier):
