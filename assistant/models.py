@@ -10,6 +10,8 @@ class InboundMessage(models.Model):
     status = models.CharField(max_length=20, default="RECEIVED")
     error = models.TextField(blank=True)
     received_at = models.DateTimeField(auto_now_add=True)
+    outbound_reply = models.TextField(blank=True, null=True)
+    source = models.CharField(max_length=20, default="WhatsApp")
 
     class Meta:
         ordering = ["-received_at"]

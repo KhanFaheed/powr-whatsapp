@@ -7,8 +7,12 @@ from django.views.decorators.http import require_GET
 from django.conf import settings
 from twilio.request_validator import RequestValidator
 
-from assistant.models import InboundMessage
+from assistant.models import InboundMessage, LeadRecord
 from assistant.services.agent import handle_message
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.utils import timezone
+import json
 
 logger = logging.getLogger(__name__)
 validator = RequestValidator(os.environ["TWILIO_AUTH_TOKEN"])
@@ -95,3 +99,64 @@ def whatsapp_webhook(request):
 @require_GET
 def health(request):
     return HttpResponse("ok")
+
+
+# ==================== NEW VIEWS: Analytics Dashboard & Web Chat Simulator ====================
+
+def dashboard_view(request):
+    """Analytics Dashboard - shows message stats and recent activity."""
+    recent_messages = InboundMessage.objects.all()[:30]
+    total_messages = InboundMessage.objects.count()
+    total_leads = LeadRecord.objects.count()
+    escalated_leads = LeadRecord.objects.filter(escalated=True).count()
+    
+    context = {
+        "recent_messages": recent_messages,
+        "total_messages": total_messages,
+        "total_leads": total_leads,
+        "escalated_leads": escalated_leads,
+    }
+    return render(request, "assistant/dashboard.html", context)
+
+
+def chat_simulator_view(request):
+    """Web Chat Simulator - WhatsApp-style chat interface for testing."""
+    return render(request, "assistant/chat.html")
+
+
+@csrf_exempt
+def chat_api_view(request):
+    """API endpoint for the chat simulator."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        text = data.get("text", "").strip()
+        
+        if not text:
+            return JsonResponse({"error": "No text provided"}, status=400)
+        
+        # Use hardcoded dummy phone number for web simulator
+        phone = "whatsapp:+19999999999"
+        
+        # Call existing AI logic
+        reply = handle_message(phone, text)
+        
+        # Save the interaction to the database
+        InboundMessage.objects.create(
+            twilio_sid=f"web-{timezone.now().timestamp()}",
+            phone=phone,
+            body=text,
+            outbound_reply=reply,
+            source="Web Simulator",
+            status="PROCESSED"
+        )
+        
+        return JsonResponse({"reply": reply})
+    
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        logger.exception(f"Error in chat_api_view: {e}")
+        return JsonResponse({"error": "An error occurred"}, status=500)

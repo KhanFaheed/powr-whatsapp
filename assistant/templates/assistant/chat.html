@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POWR AI - Chat Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        powr: { black: '#0a0a0a', dark: '#111111', gray: '#1a1a1a', muted: '#888888' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .msg-user { background: linear-gradient(135deg, #ffffff 0%, #e5e5e5 100%); }
+        .msg-bot { background-color: #1a1a1a; }
+        #chat-container::-webkit-scrollbar { width: 6px; }
+        #chat-container::-webkit-scrollbar-track { background: transparent; }
+        #chat-container::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-powr-black min-h-screen text-white">
+    <nav class="bg-powr-dark/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <a href="{% url 'dashboard' %}" class="flex items-center gap-3">
+                    <span class="text-3xl font-black tracking-tight">POWR</span>
+                    <span class="text-xs font-medium text-powr-muted uppercase tracking-widest">AI Assistant</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="{% url 'dashboard' %}" class="px-5 py-2.5 text-sm font-semibold text-white bg-white/10 rounded-lg hover:bg-white/20">Dashboard</a>
+                    <a href="{% url 'chat' %}" class="px-5 py-2.5 text-sm font-semibold text-powr-black bg-white rounded-lg">Chat Simulator</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <main class="max-w-4xl mx-auto px-6 lg:px-8 py-12">
+        <div class="mb-8 text-center">
+            <h1 class="text-4xl font-black tracking-tight mb-3">Chat Simulator</h1>
+            <p class="text-powr-muted">Test the AI Assistant in real-time</p>
+        </div>
+        <div class="bg-powr-gray border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+            <div class="bg-powr-dark px-6 py-4 flex items-center gap-4 border-b border-white/10">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                    <span class="text-powr-black text-xl font-black">P</span>
+                </div>
+                <div class="flex-1">
+                    <h2 class="font-bold text-lg">POWR AI Assistant</h2>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        <span class="text-green-400 text-xs font-medium">Online</span>
+                    </div>
+                </div>
+            </div>
+            <div id="chat-container" class="h-[500px] overflow-y-auto p-6 space-y-4">
+                <div class="flex justify-start">
+                    <div class="msg-bot rounded-2xl rounded-tl-sm px-5 py-3 max-w-[80%]">
+                        <p class="text-white text-sm leading-relaxed">مرحباً! 👋 أنا مساعد POWR الذكي. كيف يمكنني مساعدتك اليوم؟</p>
+                        <p class="text-powr-muted text-xs mt-2">Just now</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-powr-dark px-6 py-4 border-t border-white/10">
+                <form id="chat-form" class="flex items-center gap-3">
+                    <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off"
+                        class="flex-1 bg-powr-gray text-white rounded-xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 border border-white/10 placeholder-powr-muted">
+                    <button type="submit" class="bg-white text-powr-black rounded-xl px-6 py-3 font-bold text-sm hover:bg-gray-200 transition-colors">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function addMessage(text, isUser) {
+            const w = document.createElement('div');
+            w.className = 'flex ' + (isUser ? 'justify-end' : 'justify-start');
+            const b = document.createElement('div');
+            b.className = (isUser ? 'msg-user text-powr-black rounded-tr-sm' : 'msg-bot text-white rounded-tl-sm') + ' rounded-2xl px-5 py-3 max-w-[80%]';
+            b.innerHTML = '<p class="text-sm leading-relaxed whitespace-pre-wrap">' + escapeHtml(text) + '</p><p class="text-xs mt-2 opacity-60">Just now</p>';
+            w.appendChild(b);
+            chatContainer.appendChild(w);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        function addTyping() {
+            const w = document.createElement('div');
+            w.id = 'typing';
+            w.className = 'flex justify-start';
+            w.innerHTML = '<div class="msg-bot rounded-2xl rounded-tl-sm px-5 py-3"><div class="flex gap-1"><span class="w-2 h-2 bg-powr-muted rounded-full animate-bounce"></span><span class="w-2 h-2 bg-powr-muted rounded-full animate-bounce" style="animation-delay:0.1s"></span><span class="w-2 h-2 bg-powr-muted rounded-full animate-bounce" style="animation-delay:0.2s"></span></div></div>';
+            chatContainer.appendChild(w);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        function removeTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (!text) return;
+            addMessage(text, true);
+            messageInput.value = '';
+            addTyping();
+            try {
+                const res = await fetch('/api/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+                const data = await res.json();
+                removeTyping();
+                addMessage(data.reply || data.error || 'No response', false);
+            } catch (err) {
+                removeTyping();
+                addMessage('Error: Could not connect to server', false);
+            }
+        });
+    </script>
+</body>
+</html>
