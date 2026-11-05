@@ -1,32 +1,35 @@
 {% extends "assistant/base.html" %}
-{% block title %}Chat history · POWR AI{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "History" %} · POWR Concierge{% endblock %}
 
 {% block content %}
 <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-        <p class="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.18em]" style="color:#ea0f16">Conversations</p>
-        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Chat history</h1>
-        <p class="muted mt-2 text-sm">{{ total_count }} message{{ total_count|pluralize }} matching your filters.</p>
+        <p class="eyebrow mb-2">{% trans "Conversations" %}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "History" %}</h1>
+        <p class="mt-2 text-sm text-subtle">
+            {% blocktrans count counter=total_count trimmed %}{{ counter }} message matches your filters.{% plural %}{{ counter }} messages match your filters.{% endblocktrans %}
+        </p>
     </div>
-    <a href="{% url 'chat' %}" class="btn btn-primary">Open simulator</a>
+    <a href="{% url 'chat' %}" class="btn btn-primary">{% trans "Open chatbot" %}</a>
 </div>
 
 <form method="get" class="card mb-6 p-4">
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_11rem_auto]">
         <div class="relative">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--muted)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <svg class="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/>
             </svg>
-            <input type="text" name="q" value="{{ search }}" placeholder="Search message, reply or phone…" class="input pl-9">
+            <input type="text" name="q" value="{{ search }}" placeholder="{% trans 'Search message, reply or phone…' %}" class="input ps-9" aria-label="{% trans 'Search' %}">
         </div>
-        <select name="source" class="select">
-            <option value="">All sources</option>
-            <option value="WhatsApp" {% if source_filter == "WhatsApp" %}selected{% endif %}>WhatsApp</option>
-            <option value="Web Simulator" {% if source_filter == "Web Simulator" %}selected{% endif %}>Web simulator</option>
+        <select name="source" class="select" aria-label="{% trans 'Source' %}">
+            <option value="">{% trans "All sources" %}</option>
+            <option value="WhatsApp" {% if source_filter == "WhatsApp" %}selected{% endif %}>{% trans "WhatsApp" %}</option>
+            <option value="Web Simulator" {% if source_filter == "Web Simulator" %}selected{% endif %}>{% trans "Web chat" %}</option>
         </select>
         <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary flex-1 sm:flex-none">Filter</button>
-            <a href="{% url 'chat_history' %}" class="btn btn-ghost">Reset</a>
+            <button type="submit" class="btn btn-primary flex-1 sm:flex-none">{% trans "Filter" %}</button>
+            <a href="{% url 'chat_history' %}" class="btn btn-ghost">{% trans "Reset" %}</a>
         </div>
     </div>
 </form>
@@ -36,33 +39,33 @@
         <table class="data">
             <thead>
                 <tr>
-                    <th>Source</th>
-                    <th>Phone</th>
-                    <th>User message</th>
-                    <th>Bot reply</th>
-                    <th>Time</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Phone" %}</th>
+                    <th>{% trans "User message" %}</th>
+                    <th>{% trans "Bot reply" %}</th>
+                    <th>{% trans "Time" %}</th>
                 </tr>
             </thead>
             <tbody>
-                {% for msg in messages %}
+                {% for msg in inbound_messages %}
                 <tr>
                     <td>
                         {% if msg.source == "Web Simulator" %}
-                        <span class="badge badge-purple">Web</span>
+                        <span class="badge badge-purple">{% trans "Web" %}</span>
                         {% else %}
-                        <span class="badge badge-green">WhatsApp</span>
+                        <span class="badge badge-green">{% trans "WhatsApp" %}</span>
                         {% endif %}
                     </td>
-                    <td><a href="{% url 'chat_detail' msg.phone %}" class="font-medium hover:text-[#ea0f16]">{{ msg.phone|truncatechars:22 }}</a></td>
+                    <td><a href="{% url 'chat_detail' msg.phone %}" class="font-medium hover:text-brand" dir="ltr">{{ msg.phone|truncatechars:22 }}</a></td>
                     <td><span class="clamp-1">{{ msg.body|truncatechars:60 }}</span></td>
-                    <td><span class="clamp-1 muted">{{ msg.outbound_reply|default:"—"|truncatechars:60 }}</span></td>
-                    <td class="muted whitespace-nowrap text-xs">{{ msg.received_at|timesince }} ago</td>
+                    <td><span class="clamp-1 text-subtle">{{ msg.outbound_reply|default:"—"|truncatechars:60 }}</span></td>
+                    <td class="whitespace-nowrap text-xs text-subtle">{% blocktrans with elapsed=msg.received_at|timesince %}{{ elapsed }} ago{% endblocktrans %}</td>
                 </tr>
                 {% empty %}
                 <tr>
                     <td colspan="5" class="py-16 text-center">
-                        <p class="mb-1 text-sm font-semibold">No conversations found</p>
-                        <p class="muted text-xs">Try clearing your search filters.</p>
+                        <p class="mb-1 text-sm font-semibold">{% trans "No conversations found" %}</p>
+                        <p class="text-xs text-subtle">{% trans "Try clearing your search filters." %}</p>
                     </td>
                 </tr>
                 {% endfor %}

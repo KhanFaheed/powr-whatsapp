@@ -1,86 +1,89 @@
 {% extends "assistant/base.html" %}
-{% block title %}{{ lead.brand }} · Lead{% endblock %}
+{% load i18n %}
+{% block title %}{{ lead.brand }} · {% trans "Lead" %}{% endblock %}
 
 {% block content %}
-<a href="{% url 'leads' %}" class="muted mb-4 inline-flex items-center gap-1.5 text-xs font-semibold hover:text-[#ea0f16]">
-    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+<a href="{% url 'leads' %}" class="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-subtle hover:text-brand">
+    <svg class="h-3.5 w-3.5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 12H6M11 6l-6 6 6 6"/>
     </svg>
-    Back to leads
+    {% trans "Back to leads" %}
 </a>
 
 <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
     <div>
         <div class="mb-3 flex flex-wrap items-center gap-2">
             <span class="badge badge-muted">{{ lead.stage }}</span>
-            {% if lead.escalated %}<span class="badge badge-red">Escalated</span>{% endif %}
-            <span class="badge badge-muted">Tier {{ lead.tier }}</span>
+            {% if lead.escalated %}<span class="badge badge-red">{% trans "Escalated" %}</span>{% endif %}
+            <span class="badge badge-muted">{% blocktrans with tier=lead.tier %}Tier {{ tier }}{% endblocktrans %}</span>
         </div>
         <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{{ lead.brand }} — {{ lead.platform|title }} {{ lead.format|title }}</h1>
-        <p class="muted mt-2 text-sm">Odoo lead #{{ lead.odoo_lead_id|default:"—" }} · created {{ lead.created_at|date:"d M Y, H:i" }}</p>
+        <p class="mt-2 text-sm text-subtle">
+            {% blocktrans with created=lead.created_at|date:"d M Y, H:i" odoo=lead.odoo_lead_id|default:"—" trimmed %}Odoo lead #{{ odoo }} · created {{ created }}{% endblocktrans %}
+        </p>
     </div>
 </div>
 
 <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
     <div class="card p-6">
-        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Expected revenue</p>
+        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Expected revenue" %}</p>
         <p class="stat-num mt-3 text-4xl font-bold">{{ lead.expected_revenue|default:lead.final_quote_sar|floatformat:2 }}</p>
-        <p class="muted mt-1 text-xs">SAR</p>
+        <p class="mt-1 text-xs text-subtle">{% trans "SAR" %}</p>
     </div>
     <div class="card p-6">
-        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Probability</p>
+        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Probability" %}</p>
         <p class="stat-num mt-3 text-4xl font-bold">{{ lead.probability|floatformat:0 }}<span class="text-xl">%</span></p>
         <div class="bar mt-3"><span style="width: {{ lead.probability|floatformat:0 }}%"></span></div>
     </div>
     <div class="card p-6">
-        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Final quote</p>
+        <p class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Final quote" %}</p>
         <p class="stat-num mt-3 text-4xl font-bold">{% if lead.final_quote_sar %}{{ lead.final_quote_sar|floatformat:0 }}{% else %}—{% endif %}</p>
-        <p class="muted mt-1 text-xs">SAR</p>
+        <p class="mt-1 text-xs text-subtle">{% trans "SAR" %}</p>
     </div>
 </div>
 
 <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
     <div class="card p-6">
-        <h2 class="mb-5 border-b hairline pb-3 text-sm font-bold uppercase tracking-[0.12em] muted">Contact information</h2>
+        <h2 class="mb-5 border-b border-line pb-3 text-sm font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Contact information" %}</h2>
         <dl class="space-y-4 text-sm">
-            <div><dt class="muted text-xs">Contact name</dt><dd class="mt-0.5 font-medium">{{ lead.contact_name|default:"—" }}</dd></div>
-            <div><dt class="muted text-xs">Email</dt><dd class="mt-0.5 font-medium">
-                {% if lead.email %}<a href="mailto:{{ lead.email }}" class="hover:text-[#ea0f16]">{{ lead.email }}</a>{% else %}—{% endif %}
+            <div><dt class="text-xs text-subtle">{% trans "Contact name" %}</dt><dd class="mt-0.5 font-medium">{{ lead.contact_name|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Email" %}</dt><dd class="mt-0.5 font-medium">
+                {% if lead.email %}<a href="mailto:{{ lead.email }}" class="hover:text-brand" dir="ltr">{{ lead.email }}</a>{% else %}—{% endif %}
             </dd></div>
-            <div><dt class="muted text-xs">Phone</dt><dd class="mt-0.5 font-medium">{{ lead.phone|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Phone" %}</dt><dd class="mt-0.5 font-medium" dir="ltr">{{ lead.phone|default:"—" }}</dd></div>
         </dl>
     </div>
 
     <div class="card p-6">
-        <h2 class="mb-5 border-b hairline pb-3 text-sm font-bold uppercase tracking-[0.12em] muted">Company</h2>
+        <h2 class="mb-5 border-b border-line pb-3 text-sm font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Company" %}</h2>
         <dl class="space-y-4 text-sm">
-            <div><dt class="muted text-xs">Company name</dt><dd class="mt-0.5 font-medium">{{ lead.company_name|default:lead.brand }}</dd></div>
-            <div><dt class="muted text-xs">Brand</dt><dd class="mt-0.5 font-medium">{{ lead.brand }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Company name" %}</dt><dd class="mt-0.5 font-medium">{{ lead.company_name|default:lead.brand }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Brand" %}</dt><dd class="mt-0.5 font-medium">{{ lead.brand }}</dd></div>
         </dl>
     </div>
 
     <div class="card p-6">
-        <h2 class="mb-5 border-b hairline pb-3 text-sm font-bold uppercase tracking-[0.12em] muted">Campaign</h2>
+        <h2 class="mb-5 border-b border-line pb-3 text-sm font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Campaign" %}</h2>
         <dl class="space-y-4 text-sm">
-            <div><dt class="muted text-xs">Platform</dt><dd class="mt-0.5 font-medium">{{ lead.platform|title }}</dd></div>
-            <div><dt class="muted text-xs">Format</dt><dd class="mt-0.5 font-medium">{{ lead.format|title }}</dd></div>
-            <div><dt class="muted text-xs">Tier</dt><dd class="mt-0.5 font-medium">Tier {{ lead.tier }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Platform" %}</dt><dd class="mt-0.5 font-medium">{{ lead.platform|title }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Format" %}</dt><dd class="mt-0.5 font-medium">{{ lead.format|title }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Tier" %}</dt><dd class="mt-0.5 font-medium">{% blocktrans with tier=lead.tier %}Tier {{ tier }}{% endblocktrans %}</dd></div>
         </dl>
     </div>
 
     <div class="card p-6">
-        <h2 class="mb-5 border-b hairline pb-3 text-sm font-bold uppercase tracking-[0.12em] muted">Status</h2>
+        <h2 class="mb-5 border-b border-line pb-3 text-sm font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Status" %}</h2>
         <dl class="space-y-4 text-sm">
-            <div><dt class="muted text-xs">Stage</dt><dd class="mt-0.5 font-medium">{{ lead.stage }}</dd></div>
-            <div><dt class="muted text-xs">Escalated to sales</dt><dd class="mt-0.5 font-medium">{% if lead.escalated %}Yes{% else %}No{% endif %}</dd></div>
-            <div><dt class="muted text-xs">Created</dt><dd class="mt-0.5 font-medium">{{ lead.created_at|date:"d M Y, H:i" }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Stage" %}</dt><dd class="mt-0.5 font-medium">{{ lead.stage }}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Escalated to sales" %}</dt><dd class="mt-0.5 font-medium">{% if lead.escalated %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</dd></div>
+            <div><dt class="text-xs text-subtle">{% trans "Created" %}</dt><dd class="mt-0.5 font-medium">{{ lead.created_at|date:"d M Y, H:i" }}</dd></div>
         </dl>
     </div>
 </div>
 
 {% if lead.description %}
 <div class="card mt-5 p-6">
-    <h2 class="mb-4 text-sm font-bold uppercase tracking-[0.12em] muted">Quote details</h2>
+    <h2 class="mb-4 text-sm font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Quote details" %}</h2>
     <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed">{{ lead.description }}</pre>
 </div>
 {% endif %}

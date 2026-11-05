@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -25,6 +26,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # LocaleMiddleware must sit after SessionMiddleware and before CommonMiddleware.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -42,8 +45,13 @@ TEMPLATES = [{
         "context_processors": [
             "django.template.context_processors.debug",
             "django.template.context_processors.request",
+            # Exposes LANGUAGE_CODE / LANGUAGE_BIDI / LANGUAGES to every template.
+            "django.template.context_processors.i18n",
             "django.contrib.auth.context_processors.auth",
             "django.contrib.messages.context_processors.messages",
+            # Dedicated, collision-proof name for the toast stack (see
+            # assistant/context_processors.py).
+            "assistant.context_processors.flash_messages",
         ],
     },
 }]
@@ -54,8 +62,25 @@ DATABASES = {"default": dj_database_url.config(default="sqlite:///db.sqlite3")}
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Project-level static files: only the compiled Tailwind output is published.
+# The Tailwind sources live in assets/css/ (outside STATICFILES_DIRS) because
+# collectstatic would try to rewrite their `@import "tailwindcss"` URLs.
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------- Internationalisation ----------------------------
+# English is the default; Arabic is a first-class locale (RTL layout).
+USE_I18N = True
+LANGUAGE_CODE = "en"
+LANGUAGES = [
+    ("en", _("English")),
+    ("ar", _("Arabic")),
+]
+LOCALE_PATHS = [BASE_DIR / "locale"]
+LANGUAGE_COOKIE_NAME = "powr_language"
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365  # one year
+LANGUAGE_COOKIE_SAMESITE = "Lax"
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

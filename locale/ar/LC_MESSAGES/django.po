@@ -1,0 +1,587 @@
+# Arabic (ar) catalogue for POWR Concierge.
+# Generated from the English msgids produced by `manage.py makemessages`;
+# edit TRANSLATIONS in /tmp/fill_ar.py (or this file) and re-run it.
+msgid ""
+msgstr ""
+"Project-Id-Version: POWR Concierge 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-06 00:00+0300\n"
+"PO-Revision-Date: 2026-11-06 00:00+0300\n"
+"Last-Translator: Faheed <faheedk215@gmail.com>\n"
+"Language-Team: Arabic\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ar\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+
+#: assistant/templates/assistant/base.html:23
+msgid "Skip to content"
+msgstr "تخطَّ إلى المحتوى"
+
+#: assistant/templates/assistant/base.html:30
+msgid "Concierge"
+msgstr "كونسيرج"
+
+#: assistant/templates/assistant/base.html:33
+#: assistant/templates/assistant/base.html:79
+msgid "Primary"
+msgstr "التنقل الرئيسي"
+
+#: assistant/templates/assistant/base.html:34
+#: assistant/templates/assistant/base.html:80
+#: assistant/templates/assistant/dashboard.html:3
+#: assistant/templates/assistant/dashboard.html:9
+msgid "Dashboard"
+msgstr "لوحة التحكم"
+
+#: assistant/templates/assistant/base.html:35
+#: assistant/templates/assistant/base.html:81
+#: assistant/templates/assistant/chat.html:3
+msgid "Chatbot"
+msgstr "المساعد الآلي"
+
+#: assistant/templates/assistant/base.html:36
+#: assistant/templates/assistant/base.html:82
+#: assistant/templates/assistant/chat_history.html:3
+#: assistant/templates/assistant/chat_history.html:9
+msgid "History"
+msgstr "السجل"
+
+#: assistant/templates/assistant/base.html:37
+#: assistant/templates/assistant/base.html:83
+#: assistant/templates/assistant/leads.html:3
+#: assistant/templates/assistant/leads.html:9
+msgid "Leads"
+msgstr "الفرص"
+
+#: assistant/templates/assistant/base.html:43
+msgid "Interface language"
+msgstr "لغة الواجهة"
+
+#: assistant/templates/assistant/base.html:57
+msgid "Switch to light mode"
+msgstr "التبديل إلى الوضع الفاتح"
+
+#: assistant/templates/assistant/base.html:58
+msgid "Switch to dark mode"
+msgstr "التبديل إلى الوضع الداكن"
+
+#: assistant/templates/assistant/base.html:59
+msgid "Switch theme"
+msgstr "تبديل المظهر"
+
+#: assistant/templates/assistant/base.html:70
+#: assistant/templates/assistant/chat_history.html:14
+msgid "Open chatbot"
+msgstr "افتح المساعد"
+
+#: assistant/templates/assistant/base.html:101
+msgid "Dismiss"
+msgstr "إغلاق"
+
+#: assistant/templates/assistant/base.html:113
+msgid "All rights reserved."
+msgstr "جميع الحقوق محفوظة."
+
+#: assistant/templates/assistant/base.html:117
+msgid "WhatsApp partnership desk"
+msgstr "مكتب شراكات واتساب"
+
+#: assistant/templates/assistant/chat.html:8
+msgid "Live desk"
+msgstr "مكتب مباشر"
+
+#: assistant/templates/assistant/chat.html:9
+#: assistant/templates/assistant/chat.html:23
+#: assistant/templates/assistant/chat.html:36
+#: assistant/templates/assistant/chat.html:42
+#: assistant/templates/assistant/chat_detail.html:53
+msgid "POWR Concierge"
+msgstr "POWR كونسيرج"
+
+#: assistant/templates/assistant/chat.html:11
+msgid "Partnership intake, qualification and hand-off — the same assistant that answers WhatsApp, now in your browser."
+msgstr "استقبال طلبات الشراكة وتأهيلها وتسليمها — المساعد نفسه الذي يرد على واتساب، الآن في متصفحك."
+
+#: assistant/templates/assistant/chat.html:14
+msgid "Enterprise"
+msgstr "للمؤسسات"
+
+#: assistant/templates/assistant/chat.html:26
+msgid "Online · replies instantly"
+msgstr "متصل · يرد فوراً"
+
+#: assistant/templates/assistant/chat.html:29
+msgid "Web channel"
+msgstr "قناة الويب"
+
+#: assistant/templates/assistant/chat.html:35
+msgid "You"
+msgstr "أنت"
+
+#: assistant/templates/assistant/chat.html:37
+msgid "Connection lost. Please try again."
+msgstr "انقطع الاتصال. يرجى المحاولة مرة أخرى."
+
+#: assistant/templates/assistant/chat.html:38
+msgid "No response received."
+msgstr "لم يتم استلام رد."
+
+#: assistant/templates/assistant/chat.html:41
+msgid "Welcome to POWR Concierge. Share your brand, the platform and your campaign budget, and I will prepare a media proposal for you."
+msgstr "مرحباً بك في POWR كونسيرج. شاركنا اسم علامتك التجارية والمنصة وميزانية حملتك، وسنُعدّ لك عرضاً إعلامياً."
+
+#: assistant/templates/assistant/chat.html:48
+msgid "Media kit and pricing"
+msgstr "الملف الإعلامي والأسعار"
+
+#: assistant/templates/assistant/chat.html:49
+msgid "YouTube integration package"
+msgstr "باقة التكامل على يوتيوب"
+
+#: assistant/templates/assistant/chat.html:50
+msgid "Speak to the sales team"
+msgstr "التحدث مع فريق المبيعات"
+
+#: assistant/templates/assistant/chat.html:56
+msgid "Describe your campaign…"
+msgstr "صِف حملتك…"
+
+#: assistant/templates/assistant/chat.html:57
+msgid "Message"
+msgstr "الرسالة"
+
+#: assistant/templates/assistant/chat.html:59
+msgid "Send message"
+msgstr "إرسال الرسالة"
+
+#: assistant/templates/assistant/chat.html:67
+msgid "Every web message is logged for audit and appears in History."
+msgstr "تُسجَّل كل رسالة عبر الويب لأغراض التدقيق وتظهر في السجل."
+
+#: assistant/templates/assistant/chat.html:69
+msgid "to send"
+msgstr "للإرسال"
+
+#: assistant/templates/assistant/chat.html:71
+msgid "for a new line"
+msgstr "لسطر جديد"
+
+#: assistant/templates/assistant/chat.html:79
+msgid "What this desk handles"
+msgstr "ما يتولاه هذا المكتب"
+
+#: assistant/templates/assistant/chat.html:86
+msgid "Package pricing"
+msgstr "تسعير الباقات"
+
+#: assistant/templates/assistant/chat.html:87
+msgid "Instant rates for YouTube, TikTok, Instagram, Snapchat and X."
+msgstr "أسعار فورية ليوتيوب وتيك توك وإنستقرام وسناب شات وإكس."
+
+#: assistant/templates/assistant/chat.html:95
+msgid "Discount governance"
+msgstr "حوكمة الخصومات"
+
+#: assistant/templates/assistant/chat.html:96
+msgid "Applies the approved ladder and escalates anything above the limit."
+msgstr "يطبّق سلّم الخصومات المعتمد ويصعّد أي طلب يتجاوز الحد."
+
+#: assistant/templates/assistant/chat.html:104
+msgid "Qualified leads"
+msgstr "الفرص المؤهلة"
+
+#: assistant/templates/assistant/chat.html:105
+msgid "Creates an Odoo opportunity with the contact and campaign details."
+msgstr "ينشئ فرصة في Odoo مع بيانات التواصل وتفاصيل الحملة."
+
+#: assistant/templates/assistant/chat.html:112
+msgid "Session"
+msgstr "الجلسة"
+
+#: assistant/templates/assistant/chat.html:115
+msgid "Channel"
+msgstr "القناة"
+
+#: assistant/templates/assistant/chat.html:116
+msgid "Web chatbot"
+msgstr "المساعد الآلي على الويب"
+
+#: assistant/templates/assistant/chat.html:119
+msgid "Customer number"
+msgstr "رقم العميل"
+
+#: assistant/templates/assistant/chat.html:123
+msgid "CRM"
+msgstr "نظام إدارة العملاء"
+
+#: assistant/templates/assistant/chat.html:127
+msgid "Language"
+msgstr "اللغة"
+
+#: assistant/templates/assistant/chat_detail.html:3
+#: assistant/templates/assistant/chat_detail.html:13
+msgid "Conversation"
+msgstr "المحادثة"
+
+#: assistant/templates/assistant/chat_detail.html:11
+msgid "Back to history"
+msgstr "العودة إلى السجل"
+
+#: assistant/templates/assistant/chat_detail.html:16 assistant/tests.py:277
+msgid "%(counter)s message"
+msgid_plural "%(counter)s messages"
+msgstr[0] "لا رسائل"
+msgstr[1] "رسالة واحدة"
+msgstr[2] "رسالتان"
+msgstr[3] "%(counter)s رسائل"
+msgstr[4] "%(counter)s رسالة"
+msgstr[5] "%(counter)s رسالة"
+
+#: assistant/templates/assistant/chat_detail.html:33
+msgid "Active conversation"
+msgstr "محادثة نشطة"
+
+#: assistant/templates/assistant/chat_detail.html:34
+msgid "Conversation closed"
+msgstr "محادثة مغلقة"
+
+#: assistant/templates/assistant/chat_detail.html:59
+msgid "No messages in this conversation"
+msgstr "لا توجد رسائل في هذه المحادثة"
+
+#: assistant/templates/assistant/chat_detail.html:60
+msgid "Messages will appear here once received."
+msgstr "ستظهر الرسائل هنا عند استلامها."
+
+#: assistant/templates/assistant/chat_history.html:8
+msgid "Conversations"
+msgstr "المحادثات"
+
+#: assistant/templates/assistant/chat_history.html:11
+msgid "%(counter)s message matches your filters."
+msgid_plural "%(counter)s messages match your filters."
+msgstr[0] "لا توجد رسائل مطابقة لعوامل التصفية."
+msgstr[1] "رسالة واحدة تطابق عوامل التصفية."
+msgstr[2] "رسالتان تطابقان عوامل التصفية."
+msgstr[3] "%(counter)s رسائل تطابق عوامل التصفية."
+msgstr[4] "%(counter)s رسالة تطابق عوامل التصفية."
+msgstr[5] "%(counter)s رسالة تطابق عوامل التصفية."
+
+#: assistant/templates/assistant/chat_history.html:23
+msgid "Search message, reply or phone…"
+msgstr "ابحث في الرسالة أو الرد أو رقم الهاتف…"
+
+#: assistant/templates/assistant/chat_history.html:23
+#: assistant/templates/assistant/leads.html:23
+msgid "Search"
+msgstr "بحث"
+
+#: assistant/templates/assistant/chat_history.html:25
+#: assistant/templates/assistant/chat_history.html:42
+#: assistant/templates/assistant/dashboard.html:71
+msgid "Source"
+msgstr "المصدر"
+
+#: assistant/templates/assistant/chat_history.html:26
+msgid "All sources"
+msgstr "كل المصادر"
+
+#: assistant/templates/assistant/chat_history.html:27
+#: assistant/templates/assistant/chat_history.html:56
+#: assistant/templates/assistant/dashboard.html:85
+msgid "WhatsApp"
+msgstr "واتساب"
+
+#: assistant/templates/assistant/chat_history.html:28
+msgid "Web chat"
+msgstr "محادثة الويب"
+
+#: assistant/templates/assistant/chat_history.html:31
+#: assistant/templates/assistant/leads.html:37
+msgid "Filter"
+msgstr "تصفية"
+
+#: assistant/templates/assistant/chat_history.html:32
+#: assistant/templates/assistant/leads.html:38
+msgid "Reset"
+msgstr "إعادة تعيين"
+
+#: assistant/templates/assistant/chat_history.html:43
+#: assistant/templates/assistant/dashboard.html:72
+#: assistant/templates/assistant/lead_detail.html:53
+msgid "Phone"
+msgstr "الهاتف"
+
+#: assistant/templates/assistant/chat_history.html:44
+#: assistant/templates/assistant/dashboard.html:73
+msgid "User message"
+msgstr "رسالة العميل"
+
+#: assistant/templates/assistant/chat_history.html:45
+#: assistant/templates/assistant/dashboard.html:74
+msgid "Bot reply"
+msgstr "رد المساعد"
+
+#: assistant/templates/assistant/chat_history.html:46
+#: assistant/templates/assistant/dashboard.html:75
+msgid "Time"
+msgstr "الوقت"
+
+#: assistant/templates/assistant/chat_history.html:54
+#: assistant/templates/assistant/dashboard.html:83
+msgid "Web"
+msgstr "الويب"
+
+#: assistant/templates/assistant/chat_history.html:62
+#: assistant/templates/assistant/dashboard.html:91
+#: assistant/templates/assistant/leads.html:83
+msgid "%(elapsed)s ago"
+msgstr "قبل %(elapsed)s"
+
+#: assistant/templates/assistant/chat_history.html:67
+msgid "No conversations found"
+msgstr "لا توجد محادثات"
+
+#: assistant/templates/assistant/chat_history.html:68
+msgid "Try clearing your search filters."
+msgstr "جرّب إزالة عوامل التصفية."
+
+#: assistant/templates/assistant/dashboard.html:8
+msgid "Overview"
+msgstr "نظرة عامة"
+
+#: assistant/templates/assistant/dashboard.html:10
+msgid "Live performance of the POWR Concierge across WhatsApp and the web."
+msgstr "الأداء المباشر لـ POWR كونسيرج عبر واتساب والويب."
+
+#: assistant/templates/assistant/dashboard.html:13
+msgid "View history"
+msgstr "عرض السجل"
+
+#: assistant/templates/assistant/dashboard.html:14
+msgid "Manage leads"
+msgstr "إدارة الفرص"
+
+#: assistant/templates/assistant/dashboard.html:21
+msgid "Total messages"
+msgstr "إجمالي الرسائل"
+
+#: assistant/templates/assistant/dashboard.html:29
+msgid "All conversations received"
+msgstr "جميع المحادثات المستلمة"
+
+#: assistant/templates/assistant/dashboard.html:34
+msgid "Leads created"
+msgstr "الفرص المنشأة"
+
+#: assistant/templates/assistant/dashboard.html:42
+msgid "Qualified opportunities in Odoo"
+msgstr "فرص مؤهلة في Odoo"
+
+#: assistant/templates/assistant/dashboard.html:47
+#: assistant/templates/assistant/lead_detail.html:17
+#: assistant/templates/assistant/leads.html:33
+#: assistant/templates/assistant/leads.html:78
+msgid "Escalated"
+msgstr "مُصعَّدة"
+
+#: assistant/templates/assistant/dashboard.html:55
+msgid "Handed over to the sales team"
+msgstr "تم تسليمها إلى فريق المبيعات"
+
+#: assistant/templates/assistant/dashboard.html:62
+msgid "Recent messages"
+msgstr "أحدث الرسائل"
+
+#: assistant/templates/assistant/dashboard.html:63
+msgid "Latest 30 conversations"
+msgstr "أحدث 30 محادثة"
+
+#: assistant/templates/assistant/dashboard.html:65
+msgid "View all"
+msgstr "عرض الكل"
+
+#: assistant/templates/assistant/dashboard.html:96
+msgid "No messages yet"
+msgstr "لا توجد رسائل بعد"
+
+#: assistant/templates/assistant/dashboard.html:99
+msgid "Start a conversation in the <a href=\"%(chatbot_url)s\" class=\"font-semibold text-brand hover:underline\">chatbot</a>."
+msgstr "ابدأ محادثة في <a href=\"%(chatbot_url)s\" class=\"font-semibold text-brand hover:underline\">المساعد الآلي</a>."
+
+#: assistant/templates/assistant/lead_detail.html:3
+msgid "Lead"
+msgstr "فرصة"
+
+#: assistant/templates/assistant/lead_detail.html:10
+msgid "Back to leads"
+msgstr "العودة إلى الفرص"
+
+#: assistant/templates/assistant/lead_detail.html:18
+#: assistant/templates/assistant/lead_detail.html:70
+#: assistant/templates/assistant/leads.html:66
+msgid "Tier %(tier)s"
+msgstr "الفئة %(tier)s"
+
+#: assistant/templates/assistant/lead_detail.html:22
+msgid "Odoo lead #%(odoo)s · created %(created)s"
+msgstr "فرصة Odoo رقم %(odoo)s · أُنشئت في %(created)s"
+
+#: assistant/templates/assistant/lead_detail.html:29
+msgid "Expected revenue"
+msgstr "الإيراد المتوقع"
+
+#: assistant/templates/assistant/lead_detail.html:31
+#: assistant/templates/assistant/lead_detail.html:41
+#: assistant/templates/assistant/leads.html:68
+msgid "SAR"
+msgstr "ر.س"
+
+#: assistant/templates/assistant/lead_detail.html:34
+#: assistant/templates/assistant/leads.html:51
+msgid "Probability"
+msgstr "الاحتمالية"
+
+#: assistant/templates/assistant/lead_detail.html:39
+msgid "Final quote"
+msgstr "العرض النهائي"
+
+#: assistant/templates/assistant/lead_detail.html:47
+msgid "Contact information"
+msgstr "بيانات التواصل"
+
+#: assistant/templates/assistant/lead_detail.html:49
+msgid "Contact name"
+msgstr "اسم جهة التواصل"
+
+#: assistant/templates/assistant/lead_detail.html:50
+msgid "Email"
+msgstr "البريد الإلكتروني"
+
+#: assistant/templates/assistant/lead_detail.html:58
+msgid "Company"
+msgstr "الشركة"
+
+#: assistant/templates/assistant/lead_detail.html:60
+msgid "Company name"
+msgstr "اسم الشركة"
+
+#: assistant/templates/assistant/lead_detail.html:61
+#: assistant/templates/assistant/leads.html:48
+msgid "Brand"
+msgstr "العلامة التجارية"
+
+#: assistant/templates/assistant/lead_detail.html:66
+#: assistant/templates/assistant/leads.html:49
+msgid "Campaign"
+msgstr "الحملة"
+
+#: assistant/templates/assistant/lead_detail.html:68
+msgid "Platform"
+msgstr "المنصة"
+
+#: assistant/templates/assistant/lead_detail.html:69
+msgid "Format"
+msgstr "الصيغة"
+
+#: assistant/templates/assistant/lead_detail.html:70
+msgid "Tier"
+msgstr "الفئة"
+
+#: assistant/templates/assistant/lead_detail.html:75
+#: assistant/templates/assistant/leads.html:31
+#: assistant/templates/assistant/leads.html:53
+msgid "Status"
+msgstr "الحالة"
+
+#: assistant/templates/assistant/lead_detail.html:77
+#: assistant/templates/assistant/leads.html:25
+#: assistant/templates/assistant/leads.html:52
+msgid "Stage"
+msgstr "المرحلة"
+
+#: assistant/templates/assistant/lead_detail.html:78
+msgid "Escalated to sales"
+msgstr "تم التصعيد إلى المبيعات"
+
+#: assistant/templates/assistant/lead_detail.html:78
+msgid "Yes"
+msgstr "نعم"
+
+#: assistant/templates/assistant/lead_detail.html:78
+msgid "No"
+msgstr "لا"
+
+#: assistant/templates/assistant/lead_detail.html:79
+#: assistant/templates/assistant/leads.html:54
+msgid "Created"
+msgstr "تاريخ الإنشاء"
+
+#: assistant/templates/assistant/lead_detail.html:86
+msgid "Quote details"
+msgstr "تفاصيل العرض"
+
+#: assistant/templates/assistant/leads.html:8
+msgid "Pipeline"
+msgstr "مسار الفرص"
+
+#: assistant/templates/assistant/leads.html:11
+msgid "%(counter)s lead matches your filters."
+msgid_plural "%(counter)s leads match your filters."
+msgstr[0] "لا توجد فرص مطابقة لعوامل التصفية."
+msgstr[1] "فرصة واحدة تطابق عوامل التصفية."
+msgstr[2] "فرصتان تطابقان عوامل التصفية."
+msgstr[3] "%(counter)s فرص تطابق عوامل التصفية."
+msgstr[4] "%(counter)s فرصة تطابق عوامل التصفية."
+msgstr[5] "%(counter)s فرصة تطابق عوامل التصفية."
+
+#: assistant/templates/assistant/leads.html:14
+msgid "Create a lead"
+msgstr "إنشاء فرصة"
+
+#: assistant/templates/assistant/leads.html:23
+msgid "Search brand, company, email or phone…"
+msgstr "ابحث بالعلامة التجارية أو الشركة أو البريد أو الهاتف…"
+
+#: assistant/templates/assistant/leads.html:26
+msgid "All stages"
+msgstr "كل المراحل"
+
+#: assistant/templates/assistant/leads.html:32
+msgid "All statuses"
+msgstr "كل الحالات"
+
+#: assistant/templates/assistant/leads.html:34
+msgid "Not escalated"
+msgstr "غير مُصعَّدة"
+
+#: assistant/templates/assistant/leads.html:50
+msgid "Value"
+msgstr "القيمة"
+
+#: assistant/templates/assistant/leads.html:80
+msgid "Normal"
+msgstr "اعتيادي"
+
+#: assistant/templates/assistant/leads.html:88
+msgid "No leads found"
+msgstr "لا توجد فرص"
+
+#: assistant/templates/assistant/leads.html:89
+msgid "Leads are created after a customer confirms a quote."
+msgstr "تُنشأ الفرص بعد تأكيد العميل للعرض."
+
+#: assistant/views.py:128
+msgid "Interface language set to %(language)s."
+msgstr "تم تعيين لغة الواجهة إلى %(language)s."
+
+#: config/settings.py:74
+msgid "English"
+msgstr "الإنجليزية"
+
+#: config/settings.py:75
+msgid "Arabic"
+msgstr "العربية"

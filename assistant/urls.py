@@ -4,9 +4,11 @@ from . import views
 urlpatterns = [
     path("webhook/", views.whatsapp_webhook, name="webhook"),
     path("health/", views.health, name="health"),
-    # Analytics Dashboard (Homepage) & Web Chat Simulator
+    # Language switch (EN / AR) — flips the locale and flashes a confirmation
+    path("language/", views.set_language_switch, name="set_language"),
+    # Analytics Dashboard (Homepage) & POWR Concierge chatbot
     path("", views.dashboard_view, name="dashboard"),
-    path("chat/", views.chat_simulator_view, name="chat"),
+    path("chat/", views.chatbot_view, name="chat"),
     path("api/chat/", views.chat_api_view, name="chat_api"),
     # Chat History
     path("history/", views.chat_history_view, name="chat_history"),

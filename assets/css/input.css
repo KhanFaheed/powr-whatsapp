@@ -1,0 +1,52 @@
+/* ==========================================================================
+   POWR AI — Tailwind CSS entry point (Tailwind v4)
+   --------------------------------------------------------------------------
+   Dev  : npm run css:dev     (watch mode, rebuilds static/dist/output.css)
+   Prod : npm run css:build   (minified static/dist/output.css)
+   ========================================================================== */
+
+/* Tailwind core. `source(none)` turns off automatic file discovery so the
+   scan below is explicit and fast (no scanning of .venv/, staticfiles/, ...). */
+@import "tailwindcss" source(none);
+
+/* Only Django templates emit utility classes. Paths are relative to this file. */
+@source "../../assistant/templates/**/*.html";
+
+/* Project component/design-token CSS, bundled into the same output file. */
+@import "./app.css";
+
+/* Tailwind v3 used `darkMode: 'class'`; the v4 equivalent is this variant,
+   which matches `.dark` on <html> (see base.html theme bootstrap script). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --------------------------------------------------------------------------
+   Design tokens.
+   `@theme inline` keeps the runtime light/dark CSS variables (declared in
+   app.css) as the single source of truth, so utilities such as `bg-surface`,
+   `text-subtle`, `border-line` flip with the theme instead of duplicating
+   hex values in every template.
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-brand: #ea0f16;
+  --color-brand-hover: #c90d13;
+  --color-brand-soft: #ff3b41;
+  --color-brand-tint: #fff1f2;
+
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-subtle: var(--muted);
+  --color-hover: var(--hover);
+
+  --color-positive: #059669;
+  --color-positive-soft: #10b981;
+  --color-warning: #b45309;
+
+  --font-sans: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", "IBM Plex Sans Arabic", sans-serif;
+
+  --shadow-glow: 0 0 48px rgba(234, 15, 22, 0.28);
+  --shadow-card: 0 1px 2px rgba(9, 9, 11, .04), 0 12px 32px -20px rgba(9, 9, 11, .35);
+}

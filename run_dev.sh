@@ -18,6 +18,17 @@ echo "✅ Redis is running"
 # Activate virtual environment
 source .venv/bin/activate
 
+# Start the Tailwind CSS watcher (rebuilds static/dist/output.css on changes)
+if [ -d "node_modules" ]; then
+    echo "Starting Tailwind CSS watcher..."
+    npm run css:dev &
+    TAILWIND_PID=$!
+    echo "✅ Tailwind watcher started (PID: $TAILWIND_PID)"
+else
+    echo "⚠️  node_modules missing — run 'npm install' to enable the Tailwind build"
+    TAILWIND_PID=""
+fi
+
 # Start Celery worker in background
 echo "Starting Celery worker..."
 celery -A config worker -l info &
@@ -45,4 +56,4 @@ echo ""
 python manage.py runserver 0.0.0.0:8000
 
 # Cleanup on exit
-kill $CELERY_PID 2>/dev/null
+kill $CELERY_PID $TAILWIND_PID 2>/dev/null

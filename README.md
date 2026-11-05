@@ -65,7 +65,7 @@ You: بدون خصم
 Bot: Would you like to request a discount? → ✓ 0%
 You: اسمي نون ops@noon.com
 Bot: 📋 Quote summary … 💰 Total: 54,000 SAR  ✅ Within your budget (100,000 SAR)
-     1️⃣ Yes  2️⃣ Discount  3️⃣ Cancel
+     1️⃣ Yes  2️⃣ Discount  3️⃣ Cancel  4️⃣ Change package
 You: 1
 Bot: 📋 Your Quote (YT-INT-B) … 📝 Reference: #<odoo lead id>
 ```
@@ -114,6 +114,41 @@ Bot: 🤝 Connecting you with our sales team (human support)
 **Expected:** no price is promised; the customer is handed over to a person with a full summary.
 The Odoo lead is created with **`ESCALATED — 30.0% > cap 10%`** written into the description,
 and appears on `/leads/?escalated=yes` with a red **ESCALATED** badge.
+
+### Changing the request before the final decision
+
+Picking a platform is **not** a commitment. Until the customer sends *1*, every plan field —
+platform, format, tier, duration, budget and discount — can still be revised, whether they use the
+menu option **4️⃣ Change the platform or package** or simply type the change.
+
+```
+You: actually make it tiktok
+Bot: 🔄 Request updated before confirmation:
+     • Platform: X → TikTok
+     • Format: Post → Video
+     📋 Quote summary — please review:  …  💰 Total: 15,000 SAR
+     ✅ Within your budget (20,000 SAR)
+     1️⃣ Yes  2️⃣ Discount  3️⃣ Cancel  4️⃣ Change the platform or package
+
+You: budget 12000
+Bot: 🔄 Request updated before confirmation:
+     • Budget: 20,000 SAR → 12,000 SAR
+     📋 Quote summary …  ⚠️ 3,000 SAR above your budget (max discount 20%)
+
+You: 1
+Bot: 📋 Your Quote (TT-VID-B) … 📝 Reference: #<id>
+```
+
+Rules that make this safe:
+
+| Rule | Why |
+|---|---|
+| Nothing is booked before *1* | the lead is created **only** on explicit confirmation |
+| A revision beats "yes" | "yes but make it TikTok" re-prices instead of booking the old package |
+| Re-quote on every change | the price, the budget check and the escalation decision are recomputed from the new plan |
+| Budget can move the deal | lowering the budget below the cheapest discounted price flips the lead to **Escalated** at confirmation time |
+| Every change is echoed | a `🔄 … → …` block is prepended so the customer always sees what changed |
+| Changes work at any step | also while the bot is asking for budget, discount or contact details |
 
 ---
 
@@ -288,24 +323,30 @@ git clone <this repo> && cd powr-whatsapp
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
+npm install                   # Tailwind CSS v4 build tooling (one-off)
+npm run css:build             # compile assets/css/input.css -> static/dist/output.css
+
 cp .env.example .env          # then fill in the values (see §8)
 python manage.py migrate
 python manage.py createsuperuser   # optional, for /admin
 python manage.py runserver 8000
 ```
 
+While you are editing templates, run `npm run css:dev` in a second terminal so
+`static/dist/output.css` rebuilds on every change (see *Tailwind CSS* below).
+
 Then open:
 
 | URL | What |
 |---|---|
 | `http://localhost:8000/` | Analytics dashboard (homepage) |
-| `http://localhost:8000/chat/` | **Chat simulator** — run the three test cases without Twilio |
+| `http://localhost:8000/chat/` | **POWR Concierge chatbot** — run the three test cases without Twilio |
 | `http://localhost:8000/history/` | Chat history + per-conversation view (stores bot replies too) |
 | `http://localhost:8000/leads/` | Leads, filter by stage / escalation |
 | `http://localhost:8000/admin/` | Django admin |
 | `http://localhost:8000/health/` | `ok` (for your load balancer) |
 | `POST /webhook/` | Twilio WhatsApp webhook |
-| `POST /api/chat/` | JSON endpoint used by the simulator |
+| `POST /api/chat/` | JSON endpoint used by the chatbot |
 
 **Two ways to test the webhook without WhatsApp:**
 
@@ -323,6 +364,103 @@ curl -X POST http://localhost:8000/webhook/ \
 `DEV_MODE=true` makes the Odoo client return a mock lead id (no CRM calls), so you can demo the
 whole flow without an Odoo account. **The video was recorded with `DEV_MODE=false`** so the
 opportunity is visible in the real Odoo trial.
+
+### Tailwind CSS — compiled locally, no CDN
+
+The UI has **no CDN dependency**: Tailwind v4 is compiled to a plain CSS file that Django serves
+itself, so development and production use exactly the same stylesheet.
+
+| File | Role |
+|---|---|
+| `assets/css/input.css` | Entry point — `@import "tailwindcss"`, `@source` (scans `assistant/templates`), `@custom-variant dark` (class-based dark mode), `@theme` (brand colours, fonts, shadow) |
+| `assets/css/app.css` | Design tokens (`--bg`, `--surface`, `--border`, `--muted`, …) and component classes (`card`, `btn`, `input`, `badge`, `nav-shell`, `data` table, …), wrapped in Tailwind's `components` layer so utilities can still override them |
+| `static/dist/output.css` | **Build artifact** linked in `base.html` through `{% static 'dist/output.css' %}` |
+| `package.json` | `npm run css:dev` (watch) and `npm run css:build` (minified) scripts |
+
+```bash
+npm run css:dev     # watch mode — rebuilds output.css on template/CSS changes
+npm run css:build   # one-off minified build — run before committing / deploying
+```
+
+The theme tokens that used to live in the Play-CDN `tailwind.config` object are now declared with
+`@theme` in `input.css`, so `bg-brand`, `text-brand-hover`, `font-display`, `shadow-glow`, etc. keep
+working. Tailwind v4 only emits the utilities actually used in the templates (JIT), and
+`source(none)` + an explicit `@source` keeps the scan limited to `assistant/templates` — add a new
+`@source "…"` line if you introduce another template directory.
+
+**Production**
+
+```bash
+npm ci && npm run css:build        # compile the stylesheet
+python manage.py collectstatic --noinput   # gather static/ + app statics into staticfiles/
+gunicorn config.wsgi               # WhiteNoise serves the hashed, compressed files
+```
+
+`static/dist/output.css` is kept in the repo so a Python-only deploy works out of the box; always
+re-run `npm run css:build` after changing templates or `assets/css/*.css`.
+
+### Bilingual UI — English & Arabic (EN / AR)
+
+The header carries a two-button language switch (`EN` / `AR`) that posts to `/language/`. The view
+wraps Django's `set_language`, stores the choice in the `powr_language` cookie (one year) and flashes
+a confirmation through **`django.contrib.messages`** — rendered in the new language, dismissible and
+auto-hidden after 5 seconds.
+
+| Piece | Where |
+|---|---|
+| Locale middleware · `LANGUAGES` · `LOCALE_PATHS` · i18n context processor | `config/settings.py` |
+| Switch view (messages framework) | `assistant/views.py::set_language_switch` → `path("language/", …, name="set_language")` |
+| Switch UI · flash stack · theme bootstrap | `assistant/templates/assistant/base.html` |
+| Arabic catalogue | `locale/ar/LC_MESSAGES/django.po` + compiled `django.mo` |
+
+* **RTL comes for free** — the shell sets `<html lang dir>` from `LANGUAGE_BIDI`; every rule in
+  `assets/css/app.css` uses logical properties (`padding-inline`, `inset-inline`, `border-start-*`)
+  and the templates use `ps-*` / `start-*` / `text-end`. Directional icons flip with `rtl:rotate-180`.
+* **Arabic typography** — `IBM Plex Sans Arabic` is loaded and appended to the font stacks;
+  `letter-spacing` and `uppercase` are neutralised in RTL (tracking breaks Arabic glyph joining).
+* **Arabic plurals** — the catalogue ships all six Arabic plural forms (`nplurals=6`), so counters
+  read «رسالة واحدة» / «رسالتان» / «5 رسائل» / «15 رسالة» instead of a generic "s".
+
+```bash
+python manage.py makemessages -l ar      # refresh msgids after changing templates
+python manage.py compilemessages -l ar   # rebuild locale/ar/LC_MESSAGES/django.mo
+```
+
+> `compilemessages` needs gettext (`msgfmt`); the compiled `.mo` is committed, so a Python-only
+> deploy does not need gettext installed.
+
+### Theme toggle
+
+`<html class="dark">` is the single source of truth (via the Tailwind `@custom-variant dark`).
+An inline script applies the stored `powr-theme` from `localStorage` **before first paint** (no
+flash of the wrong theme), while the toggle updates `aria-pressed`, its label and
+`<meta name="theme-color">`; a `storage` listener keeps several tabs in sync.
+
+### Chat composer
+
+The chatbot input is a WhatsApp-style composer: a pill container that highlights as a whole on
+focus, a **textarea that grows from one line up to 8 rem** (then scrolls), and a circular send
+button that stays disabled until there is text (and while a reply is in flight).
+`Enter` sends, `Shift+Enter` adds a line (IME composition is respected), and the keyboard hint
+is hidden on touch devices. Newlines render through `whitespace-pre-wrap`, so multi-line messages
+look identical in the thread and in History.
+
+### Notifications (toasts)
+
+Django's own `messages` context variable is a shared name, and the History page also needs to list
+inbound messages — exposing them as `messages` used to **shadow** the framework variable, so every
+inbound row was rendered as a toast and the real flash messages were never consumed (they piled up
+and re-appeared later).
+
+The toast stack therefore reads a dedicated, collision-proof variable:
+
+| Piece | Where |
+|---|---|
+| `flash_messages` context processor — dedupes identical toasts, caps at 3 | `assistant/context_processors.py` (registered in `config/settings.py`) |
+| `{% if flash_messages %}` / `{% for message in flash_messages %}` | `assistant/templates/assistant/base.html` |
+| History/detail querysets exposed as `inbound_messages` | `assistant/views.py`, `chat_history.html`, `chat_detail.html` |
+
+Rule of thumb: never name a context key `messages` — use `inbound_messages`, `recent_messages`, etc.
 
 ---
 
@@ -425,6 +563,12 @@ powr-whatsapp/
 │   ├── views.py               # webhook, chat API, dashboard/history/leads
 │   └── urls.py
 ├── config/                    # settings, urls, celery
+├── assets/css/
+│   ├── input.css              # Tailwind entry: @source, @custom-variant dark, @theme tokens
+│   └── app.css                # design tokens + component classes (card, btn, badge, …)
+├── static/dist/output.css     # compiled stylesheet (npm run css:build) → {% static %}
+├── locale/ar/LC_MESSAGES/     # Arabic catalogue (django.po + compiled django.mo)
+├── package.json               # Tailwind CSS v4 CLI build scripts
 ├── dev_test.py                # CLI harness for cases A/B/C
 ├── DESIGN.md                  # architecture write-up
 ├── VIDEO_SCRIPT.md            # shot-by-shot script used to record the demo

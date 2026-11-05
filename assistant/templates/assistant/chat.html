@@ -1,93 +1,224 @@
 {% extends "assistant/base.html" %}
-{% block title %}Simulator · POWR AI{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Chatbot" %} · POWR Concierge{% endblock %}
 
 {% block content %}
-<div class="mb-8 text-center">
-    <p class="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.18em]" style="color:#ea0f16">Live simulator</p>
-    <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Chat Simulator</h1>
-    <p class="muted mx-auto mt-2 max-w-md text-sm">Talk to the assistant exactly like a WhatsApp customer — no Twilio needed.</p>
+<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <p class="eyebrow mb-2">{% trans "Live desk" %}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "POWR Concierge" %}</h1>
+        <p class="mt-2 max-w-xl text-sm text-subtle">
+            {% trans "Partnership intake, qualification and hand-off — the same assistant that answers WhatsApp, now in your browser." %}
+        </p>
+    </div>
+    <span class="badge badge-brand self-start sm:self-auto">{% trans "Enterprise" %}</span>
 </div>
 
-<div class="card mx-auto max-w-md overflow-hidden">
-    <div class="flex items-center gap-3 border-b hairline px-4 py-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-extrabold italic text-white" style="background:#ea0f16">P</div>
-        <div class="min-w-0 flex-1">
-            <p class="text-sm font-bold leading-tight">POWR AI Assistant</p>
-            <p class="flex items-center gap-1.5 text-[0.7rem] font-semibold" style="color:#10b981">
-                <span class="inline-block h-1.5 w-1.5 rounded-full" style="background:#10b981"></span> Online
-            </p>
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+    <!-- ===================== Chat panel ===================== -->
+    <div class="card overflow-hidden">
+        <div class="flex items-center gap-3 border-b border-line px-4 py-3">
+            <div class="avatar" aria-hidden="true">P</div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-bold leading-tight">{% trans "POWR Concierge" %}</p>
+                <p class="mt-0.5 flex items-center gap-1.5 text-[0.7rem] font-semibold text-positive">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    {% trans "Online · replies instantly" %}
+                </p>
+            </div>
+            <span class="badge badge-muted">{% trans "Web channel" %}</span>
         </div>
-        <span class="badge badge-muted">Beta</span>
-    </div>
 
-    <div id="chat-box" class="chat-scroll h-[26rem] space-y-3 overflow-y-auto p-4" style="background:var(--surface-2)">
-        <div class="flex justify-start">
-            <div class="surface max-w-[82%] rounded-2xl rounded-bl-md px-3.5 py-2.5 shadow-sm">
-                <p class="whitespace-pre-wrap text-sm leading-relaxed">مرحباً! 👋 أنا مساعد POWR الذكي. كيف يمكنني مساعدتك اليوم؟</p>
-                <p class="muted mt-1 text-[0.65rem]">POWR AI</p>
+        <div id="chat-box"
+             class="chat-scroll h-[26rem] space-y-3 overflow-y-auto bg-surface-2 p-4"
+             role="log" aria-live="polite"
+             data-you="{% trans 'You' %}"
+             data-assistant="{% trans 'POWR Concierge' %}"
+             data-error="{% trans 'Connection lost. Please try again.' %}"
+             data-empty="{% trans 'No response received.' %}">
+            <div class="flex justify-start">
+                <div class="bubble bubble-in">
+                    <p class="whitespace-pre-wrap">{% blocktrans trimmed %}Welcome to POWR Concierge. Share your brand, the platform and your campaign budget, and I will prepare a media proposal for you.{% endblocktrans %}</p>
+                    <p class="bubble-meta">{% trans "POWR Concierge" %} · <span data-initial-time>--:--</span></p>
+                </div>
             </div>
         </div>
+
+        <div class="flex flex-wrap gap-1.5 border-t border-line px-3 py-2">
+            <button type="button" class="chip" data-prompt="{% trans 'Media kit and pricing' %}">{% trans "Media kit and pricing" %}</button>
+            <button type="button" class="chip" data-prompt="{% trans 'YouTube integration package' %}">{% trans "YouTube integration package" %}</button>
+            <button type="button" class="chip" data-prompt="{% trans 'Speak to the sales team' %}">{% trans "Speak to the sales team" %}</button>
+        </div>
+
+        <form id="chat-form" class="composer">
+            <div class="composer-shell">
+                <textarea id="msg-input" rows="1" class="composer-input" autocomplete="off"
+                          placeholder="{% trans 'Describe your campaign…' %}"
+                          aria-label="{% trans 'Message' %}"
+                          maxlength="2000"></textarea>
+                <button type="submit" id="send-btn" class="send-btn" aria-label="{% trans 'Send message' %}" disabled>
+                    <svg class="h-[1.05rem] w-[1.05rem] rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h13M13 6l7 6-7 6"/>
+                    </svg>
+                </button>
+            </div>
+        </form>
+        <div class="composer-meta">
+            <p>{% trans "Every web message is logged for audit and appears in History." %}</p>
+            <p class="composer-key">
+                <kbd>Enter</kbd> <span>{% trans "to send" %}</span>
+                <span aria-hidden="true" class="px-0.5">&middot;</span>
+                <kbd>Shift</kbd><span aria-hidden="true">+</span><kbd>Enter</kbd> <span>{% trans "for a new line" %}</span>
+            </p>
+        </div>
     </div>
 
-    <form id="chat-form" class="flex items-center gap-2 border-t hairline px-3 py-3">
-        <input type="text" id="msg-input" placeholder="Type a message…" autocomplete="off" class="input rounded-full">
-        <button type="submit" id="send-btn" class="btn btn-primary h-10 w-10 shrink-0 !rounded-full !p-0" aria-label="Send message">
-            <svg class="h-[1.05rem] w-[1.05rem]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h13M13 6l7 6-7 6"/>
-            </svg>
-        </button>
-    </form>
-</div>
+    <!-- ===================== Desk context ===================== -->
+    <div class="space-y-5">
+        <div class="card p-6">
+            <h2 class="text-sm font-bold">{% trans "What this desk handles" %}</h2>
+            <ul class="mt-4 space-y-3.5 text-sm">
+                <li class="flex gap-3">
+                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg>
+                    </span>
+                    <div>
+                        <p class="font-semibold">{% trans "Package pricing" %}</p>
+                        <p class="mt-0.5 text-xs text-subtle">{% trans "Instant rates for YouTube, TikTok, Instagram, Snapchat and X." %}</p>
+                    </div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2"/></svg>
+                    </span>
+                    <div>
+                        <p class="font-semibold">{% trans "Discount governance" %}</p>
+                        <p class="mt-0.5 text-xs text-subtle">{% trans "Applies the approved ladder and escalates anything above the limit." %}</p>
+                    </div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.4-1.9M9 20H2v-2a5 5 0 019.3-2.6M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </span>
+                    <div>
+                        <p class="font-semibold">{% trans "Qualified leads" %}</p>
+                        <p class="mt-0.5 text-xs text-subtle">{% trans "Creates an Odoo opportunity with the contact and campaign details." %}</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
 
-<p class="muted mx-auto mt-4 max-w-md text-center text-xs">
-    Every message here is stored as a <strong>Web Simulator</strong> conversation and appears in your dashboard.
-</p>
+        <div class="card p-6">
+            <h2 class="text-sm font-bold">{% trans "Session" %}</h2>
+            <dl class="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                <div>
+                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Channel" %}</dt>
+                    <dd class="mt-1 font-medium">{% trans "Web chatbot" %}</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Customer number" %}</dt>
+                    <dd class="mt-1 font-medium" dir="ltr">+19999999999</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "CRM" %}</dt>
+                    <dd class="mt-1 font-medium">Odoo</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Language" %}</dt>
+                    <dd class="mt-1 font-medium">{{ LANGUAGE_CODE|upper }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     (function () {
-        const box = document.getElementById('chat-box');
-        const form = document.getElementById('chat-form');
-        const input = document.getElementById('msg-input');
-        const sendBtn = document.getElementById('send-btn');
+        var box = document.getElementById('chat-box');
+        var form = document.getElementById('chat-form');
+        var input = document.getElementById('msg-input');
+        var sendBtn = document.getElementById('send-btn');
+        if (!box || !form || !input || !sendBtn) return;
 
-        function esc(t) {
-            const d = document.createElement('div');
-            d.textContent = t;
-            return d.innerHTML;
+        var youLabel = box.dataset.you;
+        var assistantLabel = box.dataset.assistant;
+        var errorText = box.dataset.error;
+        var emptyText = box.dataset.empty;
+
+        function now() {
+            var d = new Date();
+            return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
         }
         function scrollDown() { box.scrollTop = box.scrollHeight; }
 
+        // --- Composer: auto-growing textarea, WhatsApp-style ---------------
+        var MAX_HEIGHT = 128;   // keep in sync with .composer-input max-height (8rem)
+        var sending = false;
+
+        function autoGrow() {
+            input.style.height = 'auto';
+            var height = Math.min(input.scrollHeight, MAX_HEIGHT);
+            input.style.height = height + 'px';
+            input.style.overflowY = input.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden';
+        }
+
+        function syncSendState() {
+            sendBtn.disabled = sending || input.value.trim().length === 0;
+        }
+
+        input.addEventListener('input', function () {
+            autoGrow();
+            syncSendState();
+        });
+
+        input.addEventListener('keydown', function (event) {
+            // Enter sends, Shift+Enter inserts a new line (never mid-IME-composition).
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                if (input.value.trim() && !sending && form.requestSubmit) form.requestSubmit();
+            }
+        });
+
+        var initial = document.querySelector('[data-initial-time]');
+        if (initial) initial.textContent = now();
+
         function addMessage(text, isUser) {
-            const wrap = document.createElement('div');
-            wrap.className = 'flex ' + (isUser ? 'justify-end' : 'justify-start');
-            const bubble = document.createElement('div');
-            bubble.className = isUser
-                ? 'max-w-[82%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-white shadow-sm'
-                : 'surface max-w-[82%] rounded-2xl rounded-bl-md px-3.5 py-2.5 shadow-sm';
-            if (isUser) bubble.style.background = '#ea0f16';
-            bubble.innerHTML =
-                '<p class="whitespace-pre-wrap text-sm leading-relaxed">' + esc(text) + '</p>' +
-                '<p class="mt-1 text-[0.65rem] ' + (isUser ? 'text-white/70 text-right' : 'muted') + '">' +
-                (isUser ? 'You' : 'POWR AI') + '</p>';
-            wrap.appendChild(bubble);
-            box.appendChild(wrap);
+            var row = document.createElement('div');
+            row.className = 'flex ' + (isUser ? 'justify-end' : 'justify-start');
+
+            var bubble = document.createElement('div');
+            bubble.className = 'bubble ' + (isUser ? 'bubble-out' : 'bubble-in');
+
+            var body = document.createElement('p');
+            body.className = 'whitespace-pre-wrap';
+            body.textContent = text;
+
+            var meta = document.createElement('p');
+            meta.className = 'bubble-meta';
+            meta.textContent = (isUser ? youLabel : assistantLabel) + ' \u00b7 ' + now();
+
+            bubble.appendChild(body);
+            bubble.appendChild(meta);
+            row.appendChild(bubble);
+            box.appendChild(row);
             scrollDown();
         }
 
         function showTyping(on) {
-            let el = document.getElementById('typing-row');
+            var el = document.getElementById('typing-row');
             if (on && !el) {
                 el = document.createElement('div');
                 el.id = 'typing-row';
                 el.className = 'flex justify-start';
-                el.innerHTML =
-                    '<div class="surface flex items-center gap-1 rounded-2xl rounded-bl-md px-3.5 py-3">' +
-                    '<span class="h-1.5 w-1.5 animate-bounce rounded-full" style="background:var(--muted);animation-delay:0s"></span>' +
-                    '<span class="h-1.5 w-1.5 animate-bounce rounded-full" style="background:var(--muted);animation-delay:.12s"></span>' +
-                    '<span class="h-1.5 w-1.5 animate-bounce rounded-full" style="background:var(--muted);animation-delay:.24s"></span>' +
-                    '</div>';
+
+                var bubble = document.createElement('div');
+                bubble.className = 'bubble bubble-in typing';
+                bubble.setAttribute('aria-label', assistantLabel);
+                for (var i = 0; i < 3; i++) bubble.appendChild(document.createElement('span'));
+
+                el.appendChild(bubble);
                 box.appendChild(el);
                 scrollDown();
             } else if (!on && el) {
@@ -95,36 +226,57 @@
             }
         }
 
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const text = input.value.trim();
-            if (!text) return;
-
+        async function send(text) {
             addMessage(text, true);
-            input.value = '';
-            sendBtn.disabled = true;
+            sending = true;
+            syncSendState();
+            input.readOnly = true;
             showTyping(true);
 
             try {
-                const res = await fetch('/api/chat/', {
+                var response = await fetch('{% url "chat_api" %}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text }),
+                    body: JSON.stringify({ text: text })
                 });
-                const data = await res.json();
+                var data = await response.json();
                 showTyping(false);
-                addMessage(data.reply || data.error || 'No response', false);
+                addMessage(data.reply || data.error || emptyText, false);
             } catch (err) {
                 showTyping(false);
-                addMessage('Connection error — please try again.', false);
+                addMessage(errorText, false);
             } finally {
-                sendBtn.disabled = false;
+                sending = false;
+                input.readOnly = false;
+                syncSendState();
+                autoGrow();
                 input.focus();
             }
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var text = input.value.trim();
+            if (!text || sending) return;
+            input.value = '';
+            autoGrow();
+            syncSendState();
+            send(text);
         });
 
+        Array.prototype.forEach.call(document.querySelectorAll('[data-prompt]'), function (chip) {
+            chip.addEventListener('click', function () {
+                input.value = chip.dataset.prompt;
+                autoGrow();
+                syncSendState();
+                input.focus();
+                if (form.requestSubmit) form.requestSubmit();
+            });
+        });
+
+        autoGrow();
+        syncSendState();
         input.focus();
     })();
 </script>
 {% endblock %}
-

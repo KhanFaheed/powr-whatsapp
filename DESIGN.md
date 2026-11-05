@@ -34,10 +34,15 @@ WhatsApp ──► Twilio ──► POST /webhook/  (Django view)
 collect ──► budget ──► discount ──► contact ──► confirm ──► create opportunity
    │           │           │            │          │
    │           │           │            │          └─ 1 yes · 2 discount · 3 cancel
+   │           │           │            │             4 change package
    │           │           │            └─ name + email (phone known from WhatsApp)
    │           │           └─ "%" · "no discount" · "0" · skip
    │           └─ budget in SAR (+ optional duration change)
    └─ brand · platform · format — asks only what is missing
+
+revise loop: any plan field (platform · format · tier · duration · budget ·
+             discount) sent before *1* re-prices and returns to confirm.
+             Nothing is booked until *1* — a revision beats a "yes".
 
 short-circuit: discount already above the package cap
                → skip budget/discount → contact → summary → handover

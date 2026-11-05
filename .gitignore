@@ -31,6 +31,11 @@ media/
 *.swp
 *.swo
 
+# Node / Tailwind build tooling
+node_modules/
+npm-debug.log*
+.cache/
+
 # OS
 .DS_Store
 Thumbs.db

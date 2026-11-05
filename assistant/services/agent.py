@@ -4,7 +4,7 @@ from assistant.models import ConversationState, LeadRecord
 from .extractor import extract
 from .price_sheet import build_quote, lookup_row, DEFAULT_TIER, describe_row
 from .odoo_client import create_lead, OdooError
-from .schemas import ContactInfo, QuoteRequest, is_valid_email
+from .schemas import ContactInfo, QuoteRequest, is_valid_email, normalize_platform
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -397,6 +397,153 @@ def _save_state(state, data):
     state.save(update_fields=["partial_request", "last_message_at"])
 
 
+# ---- Mid-conversation revisions (change package / budget before confirming) ----
+#: Fields a customer may revise at any point before the final confirmation.
+PLAN_FIELDS = (
+    "platform", "format", "creator_tier",
+    "requested_days", "budget_sar", "requested_discount_pct",
+)
+
+_DAYS_RE = re.compile(r"(\d{1,3})\s*(?:days?|يوم|أيام|ايام)\b", re.IGNORECASE)
+_TIER_RE = re.compile(r"(?:tier|الفئة|فئة)\s*[-:]?\s*([ABC])\b", re.IGNORECASE)
+#: Tokens we accept as a platform even when the model misses it.
+_PLATFORM_TOKENS = {
+    "youtube", "yt", "يوتيوب",
+    "tiktok", "tt", "تيكتوك", "تيك",
+    "instagram", "ig", "انستقرام", "إنستقرام", "انستغرام",
+    "snapchat", "snap", "سناب",
+    "x", "twitter", "تويتر", "إكس",
+}
+_PLATFORM_PHRASES = (
+    ("تيك توك", "tiktok"), ("tik tok", "tiktok"), ("you tube", "youtube"),
+    ("انستقرام", "instagram"), ("إنستقرام", "instagram"), ("انستغرام", "instagram"),
+)
+
+
+def _mentions_budget(text):
+    """True when the message explicitly names a budget (so we may re-parse it)."""
+    low = (text or "").lower()
+    return any(word in low for word in _BUDGET_WORDS)
+
+
+def _mentions_discount(text):
+    """True when the message explicitly names a discount / percentage."""
+    low = (text or "").lower()
+    return any(word in low for word in _DISCOUNT_WORDS) or "%" in low or "٪" in low
+
+
+def _platform_from_text(text):
+    """Fallback platform detector for short replies ("TikTok", "x", "تيك توك")."""
+    if not text:
+        return None
+    stripped = text.strip()
+    # Never read a brand domain ("x.com") or an email as a platform.
+    if _EMAIL_RE.search(text) or _DOMAIN_RE.match(stripped):
+        return None
+    low = stripped.lower()
+    for phrase, platform in _PLATFORM_PHRASES:
+        if phrase in low:
+            return platform
+    for token in re.split(r"[^A-Za-z\u0600-\u06FF]+", stripped):
+        if token.lower() in _PLATFORM_TOKENS:
+            found = normalize_platform(token)
+            if found:
+                return found
+    return None
+
+
+def _days_from_text(text):
+    """Fallback duration detector ("60 days" / "٦٠ يوم")."""
+    if not text or _mentions_budget(text):
+        return None
+    match = _DAYS_RE.search(text)
+    if not match:
+        return None
+    days = int(match.group(1))
+    return days if 1 <= days <= 365 else None
+
+
+def _tier_from_text(text):
+    """Fallback tier detector ("tier A" / "الفئة أ" won't match — only A/B/C)."""
+    match = _TIER_RE.search(text or "")
+    return match.group(1).upper() if match else None
+
+
+def _plan_changes(before, after):
+    """Fields the customer actually revised in this turn (old -> new)."""
+    changes = {}
+    for field in PLAN_FIELDS:
+        old, new = before.get(field), after.get(field)
+        if new is None or new == old:
+            continue
+        if old is None:
+            continue  # learning a value for the first time is not a revision
+        changes[field] = (old, new)
+    return changes
+
+
+def _change_value(field, value, lang="en"):
+    """Human rendering of one side of a change (old or new)."""
+    if value is None:
+        return "—"
+    if field == "platform":
+        return _display_platform(value)
+    if field == "format":
+        return _display_format(value, lang)
+    if field == "creator_tier":
+        return f"الفئة {value}" if lang == "ar" else f"Tier {value}"
+    if field == "requested_days":
+        return f"{value:g} يوم" if lang == "ar" else f"{value:g} days"
+    if field == "budget_sar":
+        return f"{value:,.0f} SAR"
+    if field == "requested_discount_pct":
+        return f"{value:g}%"
+    return str(value)
+
+
+def _looks_like_revision(text):
+    """True when the message *text* carries a change (not just "1" / "yes").
+
+    Confirmation must stay deterministic: if the extractor hallucinates a value
+    on a bare "1", we still book exactly the summary the customer saw.
+    """
+    if not text:
+        return False
+    low = text.strip().lower()
+    if _mentions_budget(low) or _mentions_discount(low):
+        return True
+    if _DAYS_RE.search(low) or _TIER_RE.search(low):
+        return True
+    if _platform_from_text(text):
+        return True
+    for alias in FORMAT_ALIASES:
+        if re.search(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", low):
+            return True
+    return False
+
+
+def _change_notice(changes, lang="en"):
+    """Short "what I just updated" block prepended to the next question."""
+    if not changes:
+        return ""
+    labels = {
+        "platform": ("المنصة", "Platform"),
+        "format": ("الصيغة", "Format"),
+        "creator_tier": ("الفئة", "Tier"),
+        "requested_days": ("المدة", "Duration"),
+        "budget_sar": ("الميزانية", "Budget"),
+        "requested_discount_pct": ("الخصم", "Discount"),
+    }
+    header = ("🔄 تم تحديث الطلب قبل التأكيد:" if lang == "ar"
+              else "🔄 Request updated before confirmation:")
+    lines = [header]
+    for field, (old, new) in changes.items():
+        ar_label, en_label = labels[field]
+        label = ar_label if lang == "ar" else en_label
+        lines.append(f"• {label}: {_change_value(field, old, lang)} → {_change_value(field, new, lang)}")
+    return "\n".join(lines)
+
+
 def handle_message(phone, text):
     """Main entry point.
 
@@ -423,31 +570,43 @@ def handle_message(phone, text):
     answer = _detect_confirmation(text)
     choice = re.sub(r"[^\w\u0600-\u06FF]", "", text or "")
 
-    # ---------------- CONFIRM stage: numbered menu 1 / 2 / 3 ----------------
-    if stage == STAGE_CONFIRM:
-        if choice in ("1", "١") or answer is True:
-            return _create_lead_and_reply(phone, state, partial, lang)
-        if choice in ("2", "٢"):
-            partial["_stage"] = STAGE_DISCOUNT
-            partial.pop("requested_discount_pct", None)  # ask fresh
-            _save_state(state, partial)
-            return _ask_discount(partial, lang)
-        if choice in ("3", "٣") or answer is False:
-            state.delete()
-            return _cancelled(lang)
-        # Anything else = the user is changing something -> re-show the summary
-
     merged = {**partial, "language": lang}
     for k, v in extracted.items():
         if k in ("language", "_stage") or v is None:
             continue
         merged[k] = v
 
-    # The model sometimes misses plain numbers -> parse from the raw text
-    if stage == STAGE_BUDGET and merged.get("budget_sar") is None:
+    # The model sometimes misses plain numbers. Budget / discount are parsed
+    # whenever the message explicitly names them — not only on their own step —
+    # so a customer can revise them at any point, including right before the
+    # final confirmation. Durations / tiers / platforms get the same treatment.
+    if _mentions_budget(text):
+        budget = _budget_from_text(text)
+        if budget is not None:
+            merged["budget_sar"] = budget
+    elif stage == STAGE_BUDGET and merged.get("budget_sar") is None:
         budget = _budget_from_text(text)
         if budget:
             merged["budget_sar"] = budget
+
+    if _mentions_discount(text):
+        disc = _discount_from_text(text)
+        if disc is not None:
+            merged["requested_discount_pct"] = disc
+
+    if not extracted.get("platform"):
+        platform_guess = _platform_from_text(text)
+        if platform_guess and merged.get("platform") != platform_guess:
+            merged["platform"] = platform_guess
+    if not extracted.get("requested_days"):
+        days_guess = _days_from_text(text)
+        if days_guess and merged.get("requested_days") != days_guess:
+            merged["requested_days"] = days_guess
+    if not extracted.get("creator_tier"):
+        tier_guess = _tier_from_text(text)
+        if tier_guess and merged.get("creator_tier") != tier_guess:
+            merged["creator_tier"] = tier_guess
+
     if stage == STAGE_DISCOUNT:
         disc = _discount_from_text(text)
         if disc is not None:
@@ -460,7 +619,9 @@ def handle_message(phone, text):
                 merged["_discount_asks"] = merged.get("_discount_asks", 0) + 1
                 merged["_stage"] = STAGE_DISCOUNT
                 _save_state(state, merged)
-                return _ask_discount_pct(merged, lang)
+                question = _ask_discount_pct(merged, lang)
+                pending = _change_notice(_plan_changes(partial, merged), lang)
+                return f"{pending}\n\n{question}" if pending else question
 
     # Fallback: a bare brand name typed at the "what is your company?" step
     if stage == STAGE_COLLECT and not merged.get("brand"):
@@ -489,12 +650,42 @@ def handle_message(phone, text):
         original_format and merged.get("format") and original_format != merged["format"]
     )
 
+    # Fields the customer revised in this turn (empty on first-time answers).
+    changes = _plan_changes(partial, merged)
+    notice = "" if stage == STAGE_COLLECT else _change_notice(changes, lang)
+
+    def _reply(message):
+        """Prepend the "what I updated" block to whatever we are about to say."""
+        return f"{notice}\n\n{message}" if notice else message
+
+    # ---------------- CONFIRM stage: numbered menu 1 / 2 / 3 / 4 ----------------
+    # A revision always wins over the menu: "yes, but make it TikTok" must NOT
+    # book the old package — it re-prices and shows the summary again.
+    revising = bool(changes) and _looks_like_revision(text)
+    if stage == STAGE_CONFIRM:
+        if not revising and (choice in ("1", "١") or answer is True):
+            # Book exactly what the summary showed — ignore this turn's extraction.
+            return _create_lead_and_reply(phone, state, partial, lang)
+        if not revising and choice in ("2", "٢"):
+            merged["_stage"] = STAGE_DISCOUNT
+            merged.pop("requested_discount_pct", None)  # ask fresh
+            _save_state(state, merged)
+            return _ask_discount(merged, lang)
+        if not revising and (choice in ("3", "٣") or answer is False):
+            state.delete()
+            return _cancelled(lang)
+        if not revising and choice in ("4", "٤"):
+            merged["_stage"] = STAGE_CONFIRM
+            _save_state(state, merged)
+            return _ask_change_plan(merged, lang)
+        # Anything else (including a revision) -> re-price + re-show the summary
+
     # ---------------- still collecting required fields ----------------
     missing = [f for f in REQUIRED if not merged.get(f)]
     if missing:
         merged["_stage"] = STAGE_COLLECT
         _save_state(state, merged)
-        return _ask_clarifying(missing, lang, merged)
+        return _reply(_ask_clarifying(missing, lang, merged))
 
     tier = merged.get("creator_tier") or DEFAULT_TIER
     days = merged.get("requested_days") or 30
@@ -504,13 +695,13 @@ def handle_message(phone, text):
     if quote["status"] == "UNKNOWN":
         merged["_stage"] = STAGE_COLLECT
         _save_state(state, merged)
-        return _suggest_alternatives(merged, lang)
+        return _reply(_suggest_alternatives(merged, lang))
 
     # ---------------- stage routing (NO lead creation here) ----------------
     if stage == STAGE_CONFIRM:
         merged["_stage"] = STAGE_CONFIRM
         _save_state(state, merged)
-        return _quote_summary_and_confirm(merged, lang, format_substituted)
+        return _reply(_quote_summary_and_confirm(merged, lang, format_substituted))
 
     # Discount already above the package cap -> there is no price to negotiate,
     # so skip the budget / discount questions and go straight to the handover.
@@ -519,13 +710,13 @@ def handle_message(phone, text):
     if stage == STAGE_COLLECT and not discount_above_cap and merged.get("budget_sar") is None:
         merged["_stage"] = STAGE_BUDGET
         _save_state(state, merged)
-        return _ask_budget(merged, quote, lang)
+        return _reply(_ask_budget(merged, quote, lang))
 
     if (stage in (STAGE_COLLECT, STAGE_BUDGET) and not discount_above_cap
             and merged.get("requested_discount_pct") is None):
         merged["_stage"] = STAGE_DISCOUNT
         _save_state(state, merged)
-        return _ask_discount(merged, lang)
+        return _reply(_ask_discount(merged, lang))
 
     # Asked for a discount but got no number -> assume no discount
     if merged.get("requested_discount_pct") is None and not discount_above_cap:
@@ -550,23 +741,23 @@ def handle_message(phone, text):
                 merged["_contact_asks"] = merged.get("_contact_asks", 0) + 1
                 merged["_stage"] = STAGE_CONTACT
                 _save_state(state, merged)
-                return _ask_contact(merged, lang, only_missing=True)
+                return _reply(_ask_contact(merged, lang, only_missing=True))
             else:
                 merged["_email_skipped"] = True  # asked twice already, move on
 
         merged["_contact_done"] = True
         merged["_stage"] = STAGE_CONFIRM
         _save_state(state, merged)
-        return _quote_summary_and_confirm(merged, lang, format_substituted)
+        return _reply(_quote_summary_and_confirm(merged, lang, format_substituted))
 
     if stage in (STAGE_COLLECT, STAGE_BUDGET, STAGE_DISCOUNT) and not merged.get("_contact_done"):
         merged["_stage"] = STAGE_CONTACT
         _save_state(state, merged)
-        return _ask_contact(merged, lang)
+        return _reply(_ask_contact(merged, lang))
 
     merged["_stage"] = STAGE_CONFIRM
     _save_state(state, merged)
-    return _quote_summary_and_confirm(merged, lang, format_substituted)
+    return _reply(_quote_summary_and_confirm(merged, lang, format_substituted))
 
 
 def _create_lead_and_reply(phone, state, req, lang):
@@ -872,8 +1063,10 @@ def _quote_summary_and_confirm(req, lang="en", format_substituted=False):
             "1️⃣ نعم — أنشئ الطلب",
             "2️⃣ أريد خصم / تعديل الميزانية",
             "3️⃣ إلغاء",
+            "4️⃣ تغيير الباقة أو المنصة",
             "",
-            "أرسل *1* أو *2* أو *3* (أو اكتب نعم / لا).",
+            "أرسل *1* أو *2* أو *3* أو *4* (أو اكتب نعم / لا).",
+            "ويمكنك أيضاً كتابة التغيير مباشرة، مثل: «تيك توك بدل X، الميزانية 40,000» — ولن يُنشأ أي طلب قبل تأكيدك.",
         ]
     else:
         lines += [
@@ -881,8 +1074,10 @@ def _quote_summary_and_confirm(req, lang="en", format_substituted=False):
             "1️⃣ Yes — create my booking",
             "2️⃣ I'd like a discount / adjust budget",
             "3️⃣ Cancel",
+            "4️⃣ Change the platform or package",
             "",
-            "Reply *1*, *2* or *3* (or just say yes / no).",
+            "Reply *1*, *2*, *3* or *4* (or just say yes / no).",
+            "You can also type the change directly, e.g. \"TikTok instead of X, budget 40,000\" — nothing is booked before you confirm.",
         ]
 
     return "\n".join(lines)
@@ -953,6 +1148,51 @@ def _ask_contact(req, lang="en", only_missing=False):
         "Type *skip* if you'd rather not share an email.\n\n"
         f"({plat} — {fmt})"
     )
+
+
+def _ask_change_plan(req, lang="en"):
+    """Invite the customer to revise the package before they confirm.
+
+    Nothing is booked until the customer replies *1*, so any of these fields
+    can still change: platform, format, tier, duration, budget, discount.
+    """
+    plat = _display_platform(req.get("platform"))
+    fmt = _display_format(req.get("format"), lang)
+    days = req.get("requested_days") or 30
+    budget = req.get("budget_sar")
+
+    if lang == "ar":
+        current = f"• الطلب الحالي: {plat} · {fmt} · {days} يوم"
+        if budget:
+            current += f" · ميزانية {budget:,.0f} SAR"
+        return "\n".join([
+            "✏️ تمام — نعدّل الطلب قبل التأكيد.",
+            "",
+            current,
+            "",
+            "أخبرني ما تريد تغييره، مثلاً:",
+            "• «تيك توك بدل X»",
+            "• «الميزانية 40,000»",
+            "• «المدة 60 يوم»",
+            "",
+            "وسأعيد حساب العرض وأعرضه عليك من جديد. لا يُنشأ أي طلب قبل أن ترسل *1*.",
+        ])
+
+    current = f"• Current request: {plat} · {fmt} · {days} days"
+    if budget:
+        current += f" · budget {budget:,.0f} SAR"
+    return "\n".join([
+        "✏️ Sure — let's change it before you confirm.",
+        "",
+        current,
+        "",
+        "Tell me what to change, for example:",
+        "• \"TikTok instead of X\"",
+        "• \"budget 40,000\"",
+        "• \"make it 60 days\"",
+        "",
+        "I'll re-price it and show you the updated summary. Nothing is booked until you send *1*.",
+    ])
 
 
 def _suggest_alternatives(merged, lang="en"):

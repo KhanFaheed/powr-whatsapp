@@ -1,77 +1,78 @@
 {% extends "assistant/base.html" %}
-{% block title %}Dashboard · POWR AI{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Dashboard" %} · POWR Concierge{% endblock %}
 
 {% block content %}
 <div class="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-        <p class="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.18em]" style="color:#ea0f16">Overview</p>
-        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Dashboard</h1>
-        <p class="muted mt-2 text-sm">Live performance of your WhatsApp AI assistant.</p>
+        <p class="eyebrow mb-2">{% trans "Overview" %}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "Dashboard" %}</h1>
+        <p class="mt-2 text-sm text-subtle">{% trans "Live performance of the POWR Concierge across WhatsApp and the web." %}</p>
     </div>
     <div class="flex items-center gap-2">
-        <a href="{% url 'chat_history' %}" class="btn btn-ghost">View history</a>
-        <a href="{% url 'leads' %}" class="btn btn-primary">Manage leads</a>
+        <a href="{% url 'chat_history' %}" class="btn btn-ghost">{% trans "View history" %}</a>
+        <a href="{% url 'leads' %}" class="btn btn-primary">{% trans "Manage leads" %}</a>
     </div>
 </div>
 
 <div class="mb-9 grid grid-cols-1 gap-5 sm:grid-cols-3">
     <a href="{% url 'chat_history' %}" class="card card-hover block p-6">
         <div class="mb-5 flex items-start justify-between">
-            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Total messages</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background:rgba(234,15,22,.12);color:#ea0f16">
+            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Total messages" %}</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand" aria-hidden="true">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.04 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                 </svg>
             </span>
         </div>
         <p class="stat-num text-5xl font-bold">{{ total_messages }}</p>
-        <p class="muted mt-4 text-xs">All conversations received</p>
+        <p class="mt-4 text-xs text-subtle">{% trans "All conversations received" %}</p>
     </a>
 
     <a href="{% url 'leads' %}" class="card card-hover block p-6">
         <div class="mb-5 flex items-start justify-between">
-            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Leads created</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background:rgba(16,185,129,.12);color:#059669">
+            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Leads created" %}</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-positive/10 text-positive" aria-hidden="true">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
             </span>
         </div>
         <p class="stat-num text-5xl font-bold">{{ total_leads }}</p>
-        <p class="muted mt-4 text-xs">Qualified opportunities in Odoo</p>
+        <p class="mt-4 text-xs text-subtle">{% trans "Qualified opportunities in Odoo" %}</p>
     </a>
 
     <a href="{% url 'leads' %}?escalated=yes" class="card card-hover block p-6">
         <div class="mb-5 flex items-start justify-between">
-            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] muted">Escalated</span>
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl" style="background:rgba(234,15,22,.12);color:#ea0f16">
+            <span class="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-subtle">{% trans "Escalated" %}</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand" aria-hidden="true">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 </svg>
             </span>
         </div>
         <p class="stat-num text-5xl font-bold">{{ escalated_leads }}</p>
-        <p class="muted mt-4 text-xs">Handed over to the sales team</p>
+        <p class="mt-4 text-xs text-subtle">{% trans "Handed over to the sales team" %}</p>
     </a>
 </div>
 
 <div class="card overflow-hidden">
-    <div class="flex items-center justify-between gap-4 border-b hairline px-6 py-4">
+    <div class="flex items-center justify-between gap-4 border-b border-line px-6 py-4">
         <div>
-            <h2 class="text-base font-bold">Recent messages</h2>
-            <p class="muted mt-0.5 text-xs">Latest 30 conversations</p>
+            <h2 class="text-base font-bold">{% trans "Recent messages" %}</h2>
+            <p class="mt-0.5 text-xs text-subtle">{% trans "Latest 30 conversations" %}</p>
         </div>
-        <a href="{% url 'chat_history' %}" class="text-xs font-semibold" style="color:#ea0f16">View all →</a>
+        <a href="{% url 'chat_history' %}" class="text-xs font-semibold text-brand hover:underline">{% trans "View all" %} <span aria-hidden="true">&rarr;</span></a>
     </div>
     <div class="overflow-x-auto">
         <table class="data">
             <thead>
                 <tr>
-                    <th>Source</th>
-                    <th>Phone</th>
-                    <th>User message</th>
-                    <th>Bot reply</th>
-                    <th>Time</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Phone" %}</th>
+                    <th>{% trans "User message" %}</th>
+                    <th>{% trans "Bot reply" %}</th>
+                    <th>{% trans "Time" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -79,22 +80,23 @@
                 <tr>
                     <td>
                         {% if msg.source == "Web Simulator" %}
-                        <span class="badge badge-purple">Web</span>
+                        <span class="badge badge-purple">{% trans "Web" %}</span>
                         {% else %}
-                        <span class="badge badge-green">WhatsApp</span>
+                        <span class="badge badge-green">{% trans "WhatsApp" %}</span>
                         {% endif %}
                     </td>
-                    <td><a href="{% url 'chat_detail' msg.phone %}" class="font-medium hover:text-[#ea0f16]">{{ msg.phone|truncatechars:22 }}</a></td>
+                    <td><a href="{% url 'chat_detail' msg.phone %}" class="font-medium hover:text-brand" dir="ltr">{{ msg.phone|truncatechars:22 }}</a></td>
                     <td><span class="clamp-1">{{ msg.body|truncatechars:70 }}</span></td>
-                    <td><span class="clamp-1 muted">{{ msg.outbound_reply|default:"—"|truncatechars:70 }}</span></td>
-                    <td class="muted whitespace-nowrap text-xs">{{ msg.received_at|timesince }} ago</td>
+                    <td><span class="clamp-1 text-subtle">{{ msg.outbound_reply|default:"—"|truncatechars:70 }}</span></td>
+                    <td class="whitespace-nowrap text-xs text-subtle">{% blocktrans with elapsed=msg.received_at|timesince %}{{ elapsed }} ago{% endblocktrans %}</td>
                 </tr>
                 {% empty %}
                 <tr>
                     <td colspan="5" class="py-16 text-center">
-                        <p class="mb-1 text-sm font-semibold">No messages yet</p>
-                        <p class="muted text-xs">Start a conversation in the
-                            <a href="{% url 'chat' %}" class="font-semibold hover:underline" style="color:#ea0f16">simulator</a>.
+                        <p class="mb-1 text-sm font-semibold">{% trans "No messages yet" %}</p>
+                        <p class="text-xs text-subtle">
+                            {% url 'chat' as chatbot_url %}
+                            {% blocktrans trimmed %}Start a conversation in the <a href="{{ chatbot_url }}" class="font-semibold text-brand hover:underline">chatbot</a>.{% endblocktrans %}
                         </p>
                     </td>
                 </tr>

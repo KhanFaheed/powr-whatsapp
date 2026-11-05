@@ -3,8 +3,13 @@ import logging
 from functools import wraps
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.conf import settings
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.utils import translation
+from django.utils.translation import gettext
+from django.views.i18n import set_language
 from twilio.request_validator import RequestValidator
 
 from assistant.models import InboundMessage, LeadRecord, ConversationState
@@ -104,7 +109,29 @@ def health(request):
     return HttpResponse("ok")
 
 
-# ==================== NEW VIEWS: Analytics Dashboard & Web Chat Simulator ====================
+@require_POST
+def set_language_switch(request):
+    """Switch the interface language and confirm it with the messages framework.
+
+    The cookie handling / redirect is delegated to Django's own ``set_language``
+    view; we only add the flash confirmation on top.
+    """
+    language = request.POST.get("language", "")
+    response = set_language(request)
+
+    if language in dict(settings.LANGUAGES):
+        # Resolve the flash text in the *new* language before storing it.
+        with translation.override(language):
+            name = translation.get_language_info(language)["name_local"]
+            messages.success(
+                request,
+                gettext("Interface language set to %(language)s.") % {"language": name},
+            )
+
+    return response
+
+
+# ==================== Analytics Dashboard & Concierge Chatbot ====================
 
 def dashboard_view(request):
     """Analytics Dashboard - shows message stats and recent activity."""
@@ -122,14 +149,14 @@ def dashboard_view(request):
     return render(request, "assistant/dashboard.html", context)
 
 
-def chat_simulator_view(request):
-    """Web Chat Simulator - WhatsApp-style chat interface for testing."""
+def chatbot_view(request):
+    """POWR Concierge - WhatsApp-style chatbot desk (previously the simulator)."""
     return render(request, "assistant/chat.html")
 
 
 @csrf_exempt
 def chat_api_view(request):
-    """API endpoint for the chat simulator."""
+    """API endpoint for the Concierge chatbot."""
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
@@ -168,42 +195,47 @@ def chat_api_view(request):
 # ==================== Chat History & Lead Management Views ====================
 
 def chat_history_view(request):
-    """Chat history list with search and filter."""
+    """Chat history list with search and filter.
+
+    The queryset is exposed as ``inbound_messages`` — *not* ``messages`` — so it
+    can never shadow the messages framework's ``messages``/``flash_messages``
+    context and leak into the toast stack.
+    """
     search = request.GET.get("q", "").strip()
     source_filter = request.GET.get("source", "")
     
-    messages = InboundMessage.objects.all()
+    inbound_messages = InboundMessage.objects.all()
     
     if search:
-        messages = messages.filter(
+        inbound_messages = inbound_messages.filter(
             Q(body__icontains=search) | 
             Q(outbound_reply__icontains=search) |
             Q(phone__icontains=search)
         )
     
     if source_filter:
-        messages = messages.filter(source=source_filter)
+        inbound_messages = inbound_messages.filter(source=source_filter)
     
     # Group messages by phone for conversation view
     context = {
-        "messages": messages[:100],
+        "inbound_messages": inbound_messages[:100],
         "search": search,
         "source_filter": source_filter,
-        "total_count": messages.count(),
+        "total_count": inbound_messages.count(),
     }
     return render(request, "assistant/chat_history.html", context)
 
 
 def chat_detail_view(request, phone):
     """Detailed chat history for a specific phone number."""
-    messages = InboundMessage.objects.filter(phone=phone).order_by("received_at")
+    inbound_messages = InboundMessage.objects.filter(phone=phone).order_by("received_at")
     conversation = ConversationState.objects.filter(phone=phone).first()
     
     context = {
         "phone": phone,
-        "messages": messages,
+        "inbound_messages": inbound_messages,
         "conversation": conversation,
-        "message_count": messages.count(),
+        "message_count": inbound_messages.count(),
     }
     return render(request, "assistant/chat_detail.html", context)
 

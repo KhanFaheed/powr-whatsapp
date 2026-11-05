@@ -4,10 +4,15 @@ Run with:  python manage.py test assistant -v 2
 """
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.contrib import messages
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.test import RequestFactory, TestCase
+from django.utils import translation
+from django.utils.translation import ngettext
 from pydantic import ValidationError
 
-from assistant.models import ConversationState, LeadRecord
+from assistant.context_processors import MAX_FLASH_MESSAGES, flash_messages
+from assistant.models import ConversationState, InboundMessage, LeadRecord
 from assistant.services import agent
 from assistant.services.extractor import ExtractedRequest
 from assistant.services.price_sheet import build_quote, describe_row
@@ -228,4 +233,282 @@ class ConversationFlowTests(TestCase):
         lead = LeadRecord.objects.get(phone=self.BARE)
         self.assertTrue(lead.escalated)
         self.assertEqual(lead.stage, "Escalated")
+
+
+class LanguageSwitchTests(TestCase):
+    """The EN/AR toggle: locale plumbing, RTL shell and the messages-framework flash."""
+
+    def test_default_language_is_english_ltr(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'lang="en"')
+        self.assertContains(response, 'dir="ltr"')
+        self.assertContains(response, "Dashboard")
+
+    def test_both_language_buttons_are_rendered(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn('name="language" value="en"', html)
+        self.assertIn('name="language" value="ar"', html)
+        self.assertIn('action="/language/"', html)
+
+    def test_switch_to_arabic_sets_cookie_rtl_and_flash(self):
+        response = self.client.post("/language/", {"language": "ar", "next": "/"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.cookies["powr_language"].value, "ar")
+        self.assertContains(response, 'lang="ar"')
+        self.assertContains(response, 'dir="rtl"')
+        self.assertContains(response, "لوحة التحكم")            # Dashboard
+        self.assertContains(response, "تم تعيين لغة الواجهة إلى")  # flash message
+
+    def test_language_cookie_persists_across_requests(self):
+        self.client.post("/language/", {"language": "ar", "next": "/"})
+        self.assertContains(self.client.get("/leads/"), "الفرص")
+
+    def test_flash_message_is_shown_only_once(self):
+        self.client.post("/language/", {"language": "ar", "next": "/"})
+        first = self.client.get("/").content.decode()
+        second = self.client.get("/").content.decode()
+        self.assertIn("تم تعيين لغة الواجهة", first)
+        self.assertNotIn("تم تعيين لغة الواجهة", second)
+
+    def test_arabic_plural_forms(self):
+        with translation.override("ar"):
+            cases = {0: "لا رسائل", 1: "رسالة واحدة", 2: "رسالتان",
+                     5: "5 رسائل", 15: "15 رسالة", 200: "200 رسالة"}
+            for count, expected in cases.items():
+                self.assertEqual(
+                    ngettext("%(counter)s message", "%(counter)s messages", count)
+                    % {"counter": count},
+                    expected,
+                    count,
+                )
+
+    def test_unknown_language_is_ignored(self):
+        response = self.client.post("/language/", {"language": "xx", "next": "/"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("powr_language", self.client.cookies)
+        self.assertContains(response, "Dashboard")
+
+
+class ConciergeChatbotTests(TestCase):
+    """The old "simulator" is now the POWR Concierge chatbot."""
+
+    def test_chatbot_page_branding(self):
+        response = self.client.get("/chat/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "POWR Concierge")
+        self.assertContains(response, "Every web message is logged")
+        self.assertNotContains(response, "Simulator")
+        self.assertNotContains(response, "simulator")
+
+    def test_navigation_labels_to_chatbot(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn('href="/chat/"', html)
+        self.assertIn("Chatbot", html)
+        self.assertNotIn("Simulator", html)
+
+    def test_composer_is_an_auto_growing_textarea(self):
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn('<textarea id="msg-input"', html)
+        self.assertIn('class="composer-input"', html)
+        self.assertIn('class="composer-shell"', html)
+        self.assertIn('id="send-btn" class="send-btn"', html)
+        self.assertIn("Shift", html)          # keyboard hint
+        self.assertIn("disabled", html)       # send stays disabled until there is text
+
+    def test_composer_hint_is_translated(self):
+        self.client.post("/language/", {"language": "ar", "next": "/"})
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn("للإرسال", html)
+        self.assertIn("لسطر جديد", html)
+
+
+class PlanRevisionTests(TestCase):
+    """A customer may change platform / plan / budget until they confirm.
+
+    Scenario from the brief: the customer picked one platform (X), has not
+    confirmed yet, and now wants a different package or a different budget.
+    """
+
+    PHONE = "whatsapp:+966500000777"
+    BARE = "+966500000777"
+
+    def setUp(self):
+        ConversationState.objects.filter(phone=self.PHONE).delete()
+        LeadRecord.objects.filter(phone=self.BARE).delete()
+
+    def tearDown(self):
+        ConversationState.objects.filter(phone=self.PHONE).delete()
+        LeadRecord.objects.filter(phone=self.BARE).delete()
+
+    def _say(self, text, **extracted):
+        with patch.object(agent, "extract", return_value=ExtractedRequest(**extracted)):
+            return agent.handle_message(self.PHONE, text)
+
+    def _state(self):
+        return ConversationState.objects.get(phone=self.PHONE).partial_request
+
+    def _walk_to_confirm_on_x(self):
+        """X · Post · 30 days · budget 20,000 · contact given → confirm stage."""
+        self._say("noon", brand="noon")
+        self._say("x", platform="x")
+        self._say("post", format="post")
+        self._say("budget 20000", requested_days=30, budget_sar=20000)
+        self._say("no discount", requested_discount_pct=0)
+        self._say("ali", contact_name="ali")
+        self._say("ali@noon.com", email="ali@noon.com")
+        return self._state()
+
+    def test_walk_reaches_confirm_without_creating_a_lead(self):
+        state = self._walk_to_confirm_on_x()
+        self.assertEqual(state["_stage"], "confirm")
+        self.assertEqual(state["platform"], "x")
+        self.assertEqual(LeadRecord.objects.count(), 0)
+
+    def test_platform_can_change_before_confirmation(self):
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("actually make it tiktok", platform="tiktok")
+
+        self.assertIn("Request updated before confirmation", reply)
+        self.assertIn("Platform: X → TikTok", reply)
+        self.assertIn("Format: Post → Video", reply)   # TikTok only runs Video
+        state = self._state()
+        self.assertEqual(state["platform"], "tiktok")
+        self.assertEqual(state["format"], "video")
+        self.assertEqual(state["_stage"], "confirm")   # still waiting for *1*
+        self.assertEqual(LeadRecord.objects.count(), 0)
+
+    def test_budget_can_change_before_confirmation(self):
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("budget 12000")
+
+        self.assertIn("Request updated before confirmation", reply)
+        self.assertIn("Budget: 20,000 SAR → 12,000 SAR", reply)
+        self.assertEqual(self._state()["budget_sar"], 12000)
+        self.assertEqual(LeadRecord.objects.count(), 0)
+
+    def test_duration_and_tier_can_change_before_confirmation(self):
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("make it 60 days, tier B")
+
+        self.assertIn("Request updated before confirmation", reply)
+        state = self._state()
+        self.assertEqual(state["requested_days"], 60)
+        self.assertEqual(state["creator_tier"], "B")
+        self.assertEqual(state["_stage"], "confirm")
+
+    def test_yes_plus_a_change_does_not_book(self):
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("yes but make it snapchat", platform="snapchat")
+
+        self.assertEqual(LeadRecord.objects.count(), 0)
+        self.assertNotIn("Reference:", reply)
+        self.assertEqual(self._state()["platform"], "snapchat")
+        self.assertEqual(self._state()["_stage"], "confirm")
+
+    def test_menu_option_4_offers_a_plan_change(self):
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("4")
+
+        self.assertIn("change it before you confirm", reply)
+        self.assertIn("X", reply)
+        self.assertEqual(self._state()["_stage"], "confirm")
+
+    def test_revision_then_confirm_books_the_new_package(self):
+        self._walk_to_confirm_on_x()
+        self._say("actually make it tiktok", platform="tiktok")
+
+        self._say("1")
+
+        lead = LeadRecord.objects.get(phone=self.BARE)
+        self.assertEqual(lead.platform, "tiktok")
+        self.assertEqual(lead.format, "video")
+        self.assertEqual(lead.final_quote_sar, 15000)   # TikTok Video · Tier B
+        self.assertFalse(lead.escalated)
+
+    def test_bare_confirmation_ignores_stray_extraction(self):
+        """A hallucinated value on "1" must not change what gets booked."""
+        self._walk_to_confirm_on_x()
+
+        self._say("1", platform="tiktok")
+
+        lead = LeadRecord.objects.get(phone=self.BARE)
+        self.assertEqual(lead.platform, "x")          # exactly what was shown
+        self.assertEqual(lead.final_quote_sar, 10000)
+
+    def test_lower_budget_on_revision_escalates_on_confirm(self):
+        self._walk_to_confirm_on_x()
+
+        summary = self._say("budget 5000")
+        self.assertIn("Request updated before confirmation", summary)
+        self.assertEqual(self._state()["budget_sar"], 5000)
+
+        self._say("1")
+        lead = LeadRecord.objects.get(phone=self.BARE)
+        self.assertTrue(lead.escalated)               # 5,000 < cheapest X package
+        self.assertEqual(lead.stage, "Escalated")
+
+
+class FlashMessageHygieneTests(TestCase):
+    """The toast stack must never dump app data, nor pile up.
+
+    Regression: the History page used to expose its queryset as ``messages``,
+    which shadowed the messages framework variable — every inbound message was
+    rendered as a toast and the real flash messages were never consumed.
+    """
+
+    PHONE = "whatsapp:+966500000999"
+
+    def setUp(self):
+        InboundMessage.objects.create(
+            twilio_sid="test-history-1",
+            phone=self.PHONE,
+            body="Hello from the test suite",
+            outbound_reply="Hi there",
+            source="Web Simulator",
+        )
+
+    def test_history_page_does_not_render_inbound_rows_as_toasts(self):
+        html = self.client.get("/history/").content.decode()
+        self.assertIn("Hello from the test suite", html)      # the row is rendered
+        self.assertNotIn('<div class="flash-stack"', html)     # …but not as a toast
+        self.assertNotIn("InboundMessage object", html)
+
+    def test_chat_detail_page_does_not_render_toasts(self):
+        html = self.client.get(f"/history/{self.PHONE}/").content.decode()
+        self.assertIn("Hello from the test suite", html)
+        self.assertNotIn('<div class="flash-stack"', html)
+
+    def test_language_flash_shows_once_and_is_consumed(self):
+        first = self.client.post(
+            "/language/", {"language": "ar", "next": "/history/"}, follow=True
+        ).content.decode()
+        self.assertEqual(first.count('class="flash flash-success"'), 1)
+        self.assertIn("تم تعيين لغة الواجهة", first)
+
+        second = self.client.get("/history/").content.decode()
+        self.assertNotIn('<div class="flash-stack"', second)
+        self.assertNotIn("تم تعيين لغة الواجهة", second)
+        self.assertNotIn("InboundMessage object", second)
+
+    def test_toast_stack_dedupes_and_caps(self):
+        request = RequestFactory().get("/")
+        request.session = self.client.session
+        setattr(request, "_messages", FallbackStorage(request))
+
+        for _ in range(2):
+            messages.success(request, "Interface language set to English.")
+        for index in range(5):
+            messages.info(request, f"Extra {index}")
+
+        payload = flash_messages(request)["flash_messages"]
+        texts = [str(message) for message in payload]
+        self.assertEqual(len(payload), MAX_FLASH_MESSAGES)
+        self.assertEqual(len(texts), len(set(texts)))
+        self.assertEqual(texts.count("Interface language set to English."), 1)
 

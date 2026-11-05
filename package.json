@@ -1,0 +1,21 @@
+{
+  "name": "powr-whatsapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "POWR AI WhatsApp assistant — Django app with a Tailwind CSS v4 build",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KhanFaheed/powr-whatsapp.git"
+  },
+  "license": "ISC",
+  "scripts": {
+    "css:build": "tailwindcss -i ./assets/css/input.css -o ./static/dist/output.css --minify",
+    "css:dev": "tailwindcss -i ./assets/css/input.css -o ./static/dist/output.css --watch",
+    "build": "npm run css:build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.4",
+    "tailwindcss": "^4.3.4"
+  }
+}

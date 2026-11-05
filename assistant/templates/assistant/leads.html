@@ -1,38 +1,41 @@
 {% extends "assistant/base.html" %}
-{% block title %}Leads · POWR AI{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Leads" %} · POWR Concierge{% endblock %}
 
 {% block content %}
 <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-        <p class="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.18em]" style="color:#ea0f16">Pipeline</p>
-        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Leads</h1>
-        <p class="muted mt-2 text-sm">{{ total_count }} lead{{ total_count|pluralize }} matching your filters.</p>
+        <p class="eyebrow mb-2">{% trans "Pipeline" %}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "Leads" %}</h1>
+        <p class="mt-2 text-sm text-subtle">
+            {% blocktrans count counter=total_count trimmed %}{{ counter }} lead matches your filters.{% plural %}{{ counter }} leads match your filters.{% endblocktrans %}
+        </p>
     </div>
-    <a href="{% url 'chat' %}" class="btn btn-primary">Create a lead</a>
+    <a href="{% url 'chat' %}" class="btn btn-primary">{% trans "Create a lead" %}</a>
 </div>
 
 <form method="get" class="card mb-6 p-4">
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_10rem_11rem_auto]">
         <div class="relative">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--muted)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <svg class="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/>
             </svg>
-            <input type="text" name="q" value="{{ search }}" placeholder="Search brand, company, email or phone…" class="input pl-9">
+            <input type="text" name="q" value="{{ search }}" placeholder="{% trans 'Search brand, company, email or phone…' %}" class="input ps-9" aria-label="{% trans 'Search' %}">
         </div>
-        <select name="stage" class="select">
-            <option value="">All stages</option>
+        <select name="stage" class="select" aria-label="{% trans 'Stage' %}">
+            <option value="">{% trans "All stages" %}</option>
             {% for s in stages %}
             <option value="{{ s }}" {% if stage_filter == s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
         </select>
-        <select name="escalated" class="select">
-            <option value="">All statuses</option>
-            <option value="yes" {% if escalated_filter == "yes" %}selected{% endif %}>Escalated</option>
-            <option value="no" {% if escalated_filter == "no" %}selected{% endif %}>Not escalated</option>
+        <select name="escalated" class="select" aria-label="{% trans 'Status' %}">
+            <option value="">{% trans "All statuses" %}</option>
+            <option value="yes" {% if escalated_filter == "yes" %}selected{% endif %}>{% trans "Escalated" %}</option>
+            <option value="no" {% if escalated_filter == "no" %}selected{% endif %}>{% trans "Not escalated" %}</option>
         </select>
         <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary flex-1 sm:flex-none">Filter</button>
-            <a href="{% url 'leads' %}" class="btn btn-ghost">Reset</a>
+            <button type="submit" class="btn btn-primary flex-1 sm:flex-none">{% trans "Filter" %}</button>
+            <a href="{% url 'leads' %}" class="btn btn-ghost">{% trans "Reset" %}</a>
         </div>
     </div>
 </form>
@@ -42,13 +45,13 @@
         <table class="data">
             <thead>
                 <tr>
-                    <th>Brand</th>
-                    <th>Campaign</th>
-                    <th>Value</th>
-                    <th>Probability</th>
-                    <th>Stage</th>
-                    <th>Status</th>
-                    <th>Created</th>
+                    <th>{% trans "Brand" %}</th>
+                    <th>{% trans "Campaign" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Probability" %}</th>
+                    <th>{% trans "Stage" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Created" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -56,34 +59,34 @@
                 <tr class="cursor-pointer" onclick="window.location='{% url 'lead_detail' lead.id %}'">
                     <td>
                         <p class="font-semibold">{{ lead.brand }}</p>
-                        <p class="muted text-xs">{{ lead.company_name|default:lead.brand }}</p>
+                        <p class="text-xs text-subtle">{{ lead.company_name|default:lead.brand }}</p>
                     </td>
                     <td>
                         <p>{{ lead.platform|title }} · {{ lead.format|title }}</p>
-                        <p class="muted text-xs">Tier {{ lead.tier }}</p>
+                        <p class="text-xs text-subtle">{% blocktrans with tier=lead.tier %}Tier {{ tier }}{% endblocktrans %}</p>
                     </td>
-                    <td class="whitespace-nowrap font-semibold">{{ lead.expected_revenue|default:lead.final_quote_sar|floatformat:0 }} <span class="muted text-xs font-normal">SAR</span></td>
+                    <td class="whitespace-nowrap font-semibold">{{ lead.expected_revenue|default:lead.final_quote_sar|floatformat:0 }} <span class="text-xs font-normal text-subtle">{% trans "SAR" %}</span></td>
                     <td class="w-32">
                         <div class="flex items-center gap-2">
                             <div class="bar flex-1"><span style="width: {{ lead.probability|floatformat:0 }}%"></span></div>
-                            <span class="muted w-9 text-right text-xs">{{ lead.probability|floatformat:0 }}%</span>
+                            <span class="w-9 text-end text-xs text-subtle">{{ lead.probability|floatformat:0 }}%</span>
                         </div>
                     </td>
                     <td><span class="badge badge-muted">{{ lead.stage }}</span></td>
                     <td>
                         {% if lead.escalated %}
-                        <span class="badge badge-red">Escalated</span>
+                        <span class="badge badge-red">{% trans "Escalated" %}</span>
                         {% else %}
-                        <span class="muted text-xs">Normal</span>
+                        <span class="text-xs text-subtle">{% trans "Normal" %}</span>
                         {% endif %}
                     </td>
-                    <td class="muted whitespace-nowrap text-xs">{{ lead.created_at|timesince }} ago</td>
+                    <td class="whitespace-nowrap text-xs text-subtle">{% blocktrans with elapsed=lead.created_at|timesince %}{{ elapsed }} ago{% endblocktrans %}</td>
                 </tr>
                 {% empty %}
                 <tr>
                     <td colspan="7" class="py-16 text-center">
-                        <p class="mb-1 text-sm font-semibold">No leads found</p>
-                        <p class="muted text-xs">Leads are created after a customer confirms a quote.</p>
+                        <p class="mb-1 text-sm font-semibold">{% trans "No leads found" %}</p>
+                        <p class="text-xs text-subtle">{% trans "Leads are created after a customer confirms a quote." %}</p>
                     </td>
                 </tr>
                 {% endfor %}
