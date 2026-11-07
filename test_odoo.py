@@ -1,25 +1,40 @@
 #!/usr/bin/env python
-"""Test Odoo connection and CRM lead creation"""
+"""Test Odoo connection and CRM lead creation.
+
+Credentials follow the app's own precedence: values saved on /settings/ first,
+then `.env` (see assistant/services/runtime_settings.py).
+"""
 import os
 import sys
 import xmlrpc.client
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from dotenv import load_dotenv
-load_dotenv()
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-ODOO_URL = os.environ.get('ODOO_URL', '').rstrip('/')
-ODOO_DB = os.environ.get('ODOO_DB', '')
-ODOO_USERNAME = os.environ.get('ODOO_USERNAME', '')
-ODOO_API_KEY = os.environ.get('ODOO_API_KEY', '')
+import django  # noqa: E402
+
+django.setup()
+
+from assistant.services.runtime_settings import (  # noqa: E402
+    dev_mode as odoo_dev_mode,
+    odoo_config,
+    source_of,
+)
+
+_CONFIG = odoo_config()
+ODOO_URL = _CONFIG["url"]
+ODOO_DB = _CONFIG["db"]
+ODOO_USERNAME = _CONFIG["username"]
+ODOO_API_KEY = _CONFIG["api_key"]
 
 print('='*50)
 print('ODOO CONNECTION TEST')
 print('='*50)
-print(f'URL: {ODOO_URL}')
-print(f'DB: {ODOO_DB}')
-print(f'User: {ODOO_USERNAME}')
+print(f"URL: {ODOO_URL}  (from {source_of('odoo_url')})")
+print(f"DB: {ODOO_DB}  (from {source_of('odoo_db')})")
+print(f"User: {ODOO_USERNAME}  (from {source_of('odoo_username')})")
+print(f"DEV mode: {odoo_dev_mode()}")
 print()
 
 try:

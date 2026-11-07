@@ -3,48 +3,57 @@
 {% block title %}{% trans "Chatbot" %} · POWR Concierge{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-        <p class="eyebrow mb-2">{% trans "Live desk" %}</p>
-        <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "POWR Concierge" %}</h1>
-        <p class="mt-2 max-w-xl text-sm text-subtle">
-            {% trans "Partnership intake, qualification and hand-off — the same assistant that answers WhatsApp, now in your browser." %}
-        </p>
+<div class="mx-auto w-full max-w-5xl">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="eyebrow mb-2">{% trans "Live desk" %}</p>
+            <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "POWR Concierge" %}</h1>
+        </div>
+        <div class="flex items-center gap-2 self-start sm:self-auto">
+            <a href="{% url 'chat_history' %}" class="btn btn-ghost">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.05 11a9 9 0 1 0 .5-3.5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 4v4h4"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l2.5 1.5"/>
+                </svg>
+                {% trans "History" %}
+            </a>
+            <span class="badge badge-brand">{% trans "Enterprise" %}</span>
+        </div>
     </div>
-    <span class="badge badge-brand self-start sm:self-auto">{% trans "Enterprise" %}</span>
-</div>
 
-<div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-    <!-- ===================== Chat panel ===================== -->
+    <!-- ===================== Concierge workspace ===================== -->
     <div class="card overflow-hidden">
-        <div class="flex items-center gap-3 border-b border-line px-4 py-3">
-            <div class="avatar" aria-hidden="true">P</div>
+        <div class="flex items-center gap-3 border-b border-line bg-surface px-4 py-3.5 sm:px-6">
+            <div class="avatar shrink-0" aria-hidden="true">P</div>
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold leading-tight">{% trans "POWR Concierge" %}</p>
-                <p class="mt-0.5 flex items-center gap-1.5 text-[0.7rem] font-semibold text-positive">
+                <p class="truncate text-sm font-bold leading-tight">{% trans "POWR Concierge" %}</p>
+                <p class="mt-0.5 flex items-center gap-1.5 truncate text-[0.7rem] font-semibold text-positive">
                     <span class="status-dot" aria-hidden="true"></span>
                     {% trans "Online · replies instantly" %}
                 </p>
             </div>
-            <span class="badge badge-muted">{% trans "Web channel" %}</span>
+            <span class="hidden sm:inline-flex badge badge-muted">{% trans "Web channel" %}</span>
         </div>
 
         <div id="chat-box"
-             class="chat-scroll h-[26rem] space-y-3 overflow-y-auto bg-surface-2 p-4"
+             class="chat-scroll chat-surface h-[24rem] space-y-3 overflow-y-auto p-4 sm:h-[30rem] sm:p-6"
              role="log" aria-live="polite"
-             data-you="{% trans 'You' %}"
              data-assistant="{% trans 'POWR Concierge' %}"
              data-error="{% trans 'Connection lost. Please try again.' %}"
              data-empty="{% trans 'No response received.' %}">
-            <div class="flex justify-start">
+            <div class="chat-day"><span>{% trans "Today" %}</span></div>
+            <div class="flex items-start gap-2">
+                <div class="avatar avatar-sm shrink-0" aria-hidden="true">P</div>
                 <div class="bubble bubble-in">
                     <p class="whitespace-pre-wrap">{% blocktrans trimmed %}Welcome to POWR Concierge. Share your brand, the platform and your campaign budget, and I will prepare a media proposal for you.{% endblocktrans %}</p>
-                    <p class="bubble-meta">{% trans "POWR Concierge" %} · <span data-initial-time>--:--</span></p>
+                    <p class="bubble-meta"><span data-initial-time>--:--</span></p>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-1.5 border-t border-line px-3 py-2">
+        <div class="flex flex-wrap items-center gap-1.5 border-t border-line bg-surface px-3 py-2 sm:px-4">
+            <span class="me-1 hidden text-[0.6rem] font-bold uppercase tracking-[0.14em] text-subtle sm:inline">{% trans "Suggestions" %}</span>
             <button type="button" class="chip" data-prompt="{% trans 'Media kit and pricing' %}">{% trans "Media kit and pricing" %}</button>
             <button type="button" class="chip" data-prompt="{% trans 'YouTube integration package' %}">{% trans "YouTube integration package" %}</button>
             <button type="button" class="chip" data-prompt="{% trans 'Speak to the sales team' %}">{% trans "Speak to the sales team" %}</button>
@@ -64,70 +73,12 @@
             </div>
         </form>
         <div class="composer-meta">
-            <p>{% trans "Every web message is logged for audit and appears in History." %}</p>
+            <p>{% trans "Logged for audit · appears in History" %}</p>
             <p class="composer-key">
                 <kbd>Enter</kbd> <span>{% trans "to send" %}</span>
                 <span aria-hidden="true" class="px-0.5">&middot;</span>
                 <kbd>Shift</kbd><span aria-hidden="true">+</span><kbd>Enter</kbd> <span>{% trans "for a new line" %}</span>
             </p>
-        </div>
-    </div>
-
-    <!-- ===================== Desk context ===================== -->
-    <div class="space-y-5">
-        <div class="card p-6">
-            <h2 class="text-sm font-bold">{% trans "What this desk handles" %}</h2>
-            <ul class="mt-4 space-y-3.5 text-sm">
-                <li class="flex gap-3">
-                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg>
-                    </span>
-                    <div>
-                        <p class="font-semibold">{% trans "Package pricing" %}</p>
-                        <p class="mt-0.5 text-xs text-subtle">{% trans "Instant rates for YouTube, TikTok, Instagram, Snapchat and X." %}</p>
-                    </div>
-                </li>
-                <li class="flex gap-3">
-                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2"/></svg>
-                    </span>
-                    <div>
-                        <p class="font-semibold">{% trans "Discount governance" %}</p>
-                        <p class="mt-0.5 text-xs text-subtle">{% trans "Applies the approved ladder and escalates anything above the limit." %}</p>
-                    </div>
-                </li>
-                <li class="flex gap-3">
-                    <span class="mt-0.5 shrink-0 text-brand" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.4-1.9M9 20H2v-2a5 5 0 019.3-2.6M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </span>
-                    <div>
-                        <p class="font-semibold">{% trans "Qualified leads" %}</p>
-                        <p class="mt-0.5 text-xs text-subtle">{% trans "Creates an Odoo opportunity with the contact and campaign details." %}</p>
-                    </div>
-                </li>
-            </ul>
-        </div>
-
-        <div class="card p-6">
-            <h2 class="text-sm font-bold">{% trans "Session" %}</h2>
-            <dl class="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-                <div>
-                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Channel" %}</dt>
-                    <dd class="mt-1 font-medium">{% trans "Web chatbot" %}</dd>
-                </div>
-                <div>
-                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Customer number" %}</dt>
-                    <dd class="mt-1 font-medium" dir="ltr">+19999999999</dd>
-                </div>
-                <div>
-                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "CRM" %}</dt>
-                    <dd class="mt-1 font-medium">Odoo</dd>
-                </div>
-                <div>
-                    <dt class="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-subtle">{% trans "Language" %}</dt>
-                    <dd class="mt-1 font-medium">{{ LANGUAGE_CODE|upper }}</dd>
-                </div>
-            </dl>
         </div>
     </div>
 </div>
@@ -142,7 +93,6 @@
         var sendBtn = document.getElementById('send-btn');
         if (!box || !form || !input || !sendBtn) return;
 
-        var youLabel = box.dataset.you;
         var assistantLabel = box.dataset.assistant;
         var errorText = box.dataset.error;
         var emptyText = box.dataset.empty;
@@ -186,7 +136,9 @@
 
         function addMessage(text, isUser) {
             var row = document.createElement('div');
-            row.className = 'flex ' + (isUser ? 'justify-end' : 'justify-start');
+            row.className = 'flex items-start gap-2 ' + (isUser ? 'justify-end' : 'justify-start');
+
+            if (!isUser) row.appendChild(agentAvatar());
 
             var bubble = document.createElement('div');
             bubble.className = 'bubble ' + (isUser ? 'bubble-out' : 'bubble-in');
@@ -197,7 +149,7 @@
 
             var meta = document.createElement('p');
             meta.className = 'bubble-meta';
-            meta.textContent = (isUser ? youLabel : assistantLabel) + ' \u00b7 ' + now();
+            meta.textContent = now();
 
             bubble.appendChild(body);
             bubble.appendChild(meta);
@@ -206,12 +158,22 @@
             scrollDown();
         }
 
+        function agentAvatar() {
+            var avatar = document.createElement('div');
+            avatar.className = 'avatar avatar-sm shrink-0';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.textContent = 'P';
+            return avatar;
+        }
+
         function showTyping(on) {
             var el = document.getElementById('typing-row');
             if (on && !el) {
                 el = document.createElement('div');
                 el.id = 'typing-row';
-                el.className = 'flex justify-start';
+                el.className = 'flex items-start gap-2 justify-start';
+
+                el.appendChild(agentAvatar());
 
                 var bubble = document.createElement('div');
                 bubble.className = 'bubble bubble-in typing';
@@ -239,6 +201,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text })
                 });
+                if (response.status === 401) {
+                    // Signed out or not the allow-listed seat — back to sign-in.
+                    window.location.href = '{% url "login" %}';
+                    return;
+                }
                 var data = await response.json();
                 showTyping(false);
                 addMessage(data.reply || data.error || emptyText, false);
@@ -276,7 +243,9 @@
 
         autoGrow();
         syncSendState();
-        input.focus();
+        // Auto-focus on desktop only: on touch devices focusing on load opens the
+        // keyboard and scrolls the transcript out of view on first paint.
+        if (window.matchMedia('(min-width: 768px)').matches) input.focus();
     })();
 </script>
 {% endblock %}

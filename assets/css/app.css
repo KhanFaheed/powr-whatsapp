@@ -22,6 +22,7 @@
     --hover: rgba(9, 9, 11, .045);
     --nav: rgba(255, 255, 255, .84);
     --ring: rgba(234, 15, 22, .20);
+    --dot: rgba(9, 9, 11, .045);
     --shadow-float: 0 18px 40px -24px rgba(9, 9, 11, .45);
     --brand: #ea0f16;
 }
@@ -40,6 +41,7 @@ html.dark {
     --hover: rgba(255, 255, 255, .055);
     --nav: rgba(8, 8, 10, .80);
     --ring: rgba(234, 15, 22, .35);
+    --dot: rgba(255, 255, 255, .04);
     --shadow-float: 0 22px 48px -26px rgba(0, 0, 0, .95);
     --brand: #ea0f16;
 }
@@ -297,13 +299,43 @@ html.dark { color-scheme: dark; }
     .chat-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
 
+    /* Transcript canvas: a quiet dot grid so the desk reads as an app surface,
+       not as another card full of marketing copy. */
+    .chat-surface {
+        background-color: var(--surface-2);
+        background-image: radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0);
+        background-size: 26px 26px;
+    }
+
+    .chat-day { display: flex; justify-content: center; }
+    .chat-day > span {
+        display: inline-block;
+        padding: .15rem .65rem;
+        border-radius: 999px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: .625rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
     .bubble {
-        max-width: 82%;
+        max-width: min(84%, 34rem);
         padding: .6rem .85rem;
         border-radius: .9rem;
         font-size: .8125rem;
         line-height: 1.6;
         overflow-wrap: anywhere;
+        animation: bubble-in .18s ease-out;
+    }
+    @keyframes bubble-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .bubble { animation: none; }
     }
     .bubble-in {
         background: var(--surface);
@@ -365,8 +397,8 @@ html.dark { color-scheme: dark; }
     }
     .composer-shell:focus-within {
         background: var(--surface);
-        border-color: rgba(234, 15, 22, .55);
-        box-shadow: 0 0 0 3px var(--ring);
+        border-color: rgba(234, 15, 22, .38);
+        box-shadow: 0 0 0 3px rgba(234, 15, 22, .09);
     }
     .composer-input {
         flex: 1 1 auto;

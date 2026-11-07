@@ -1,18 +1,10 @@
-import os
 import logging
 import xmlrpc.client
 from dataclasses import dataclass
 
+from .runtime_settings import dev_mode as _dev_mode, odoo_config
+
 logger = logging.getLogger(__name__)
-
-# Odoo configuration - use XML-RPC which is standard for Odoo
-ODOO_URL = os.environ.get("ODOO_URL", "").rstrip("/")
-ODOO_DB = os.environ.get("ODOO_DB", "")
-ODOO_USERNAME = os.environ.get("ODOO_USERNAME", "")
-ODOO_API_KEY = os.environ.get("ODOO_API_KEY", "")
-
-# Dev mode flag - if True, skip actual Odoo calls and return mock data
-DEV_MODE = os.environ.get("DEV_MODE", "false").lower() == "true"
 
 
 class OdooError(Exception):
@@ -25,10 +17,21 @@ class OdooLead:
     payload: dict
 
 
-def _get_uid():
+def _config():
+    """Resolve Odoo credentials: settings saved in the desk, else ``.env``."""
+    config = odoo_config()
+    if not all(config.values()):
+        raise OdooError(
+            "Odoo is not configured — add the URL, database, username and API key "
+            "in Settings, or set ODOO_URL / ODOO_DB / ODOO_USERNAME / ODOO_API_KEY."
+        )
+    return config
+
+
+def _get_uid(config):
     """Authenticate and get user ID"""
-    common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
-    uid = common.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, {})
+    common = xmlrpc.client.ServerProxy(f'{config["url"]}/xmlrpc/2/common')
+    uid = common.authenticate(config["db"], config["username"], config["api_key"], {})
     if not uid:
         raise OdooError("Authentication failed")
     return uid
@@ -78,18 +81,19 @@ def create_lead(req, quote, note="", phone=""):
         payload["contact_name"] = req["contact_name"]
 
     # Dev mode - return mock data without calling Odoo
-    if DEV_MODE:
+    if _dev_mode():
         import random
         mock_id = random.randint(1000, 9999)
         logger.info("DEV_MODE: Mock Odoo lead id=%s", mock_id)
         return OdooLead(odoo_id=mock_id, payload=payload)
 
     try:
-        uid = _get_uid()
-        models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
-        
+        config = _config()
+        uid = _get_uid(config)
+        models = xmlrpc.client.ServerProxy(f'{config["url"]}/xmlrpc/2/object')
+
         lead_id = models.execute_kw(
-            ODOO_DB, uid, ODOO_API_KEY,
+            config["db"], uid, config["api_key"],
             'crm.lead', 'create',
             [payload]
         )

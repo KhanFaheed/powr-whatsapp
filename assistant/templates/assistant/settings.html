@@ -1,0 +1,136 @@
+{% extends "assistant/base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Integration settings" %} · POWR Concierge{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-5xl">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="eyebrow mb-2">{% trans "Test console" %}</p>
+            <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{% trans "Integration settings" %}</h1>
+            <p class="mt-2 max-w-2xl text-sm text-subtle">
+                {% trans "Point the assistant at your own OpenRouter, Odoo and Twilio accounts while you test. Anything you leave blank falls back to the server's .env values, so production keeps running untouched." %}
+            </p>
+        </div>
+        <span class="badge badge-brand self-start sm:self-auto">{% trans "Tester" %}</span>
+    </div>
+
+    <!-- Readiness strip -->
+    <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="card flex items-center gap-3 px-4 py-3">
+            <span class="h-2 w-2 rounded-full {% if openrouter_ready %}bg-positive{% else %}bg-brand{% endif %}" aria-hidden="true"></span>
+            <div class="min-w-0">
+                <p class="text-xs font-bold">{% trans "OpenRouter" %}</p>
+                <p class="text-[0.68rem] text-subtle">{% if openrouter_ready %}{% trans "Key available" %}{% else %}{% trans "No API key" %}{% endif %}</p>
+            </div>
+        </div>
+        <div class="card flex items-center gap-3 px-4 py-3">
+            <span class="h-2 w-2 rounded-full {% if odoo_ready %}bg-positive{% else %}bg-brand{% endif %}" aria-hidden="true"></span>
+            <div class="min-w-0">
+                <p class="text-xs font-bold">{% trans "Odoo CRM" %}</p>
+                <p class="text-[0.68rem] text-subtle">
+                    {% if dev_mode_effective %}{% trans "DEV mode · mock leads" %}{% elif odoo_ready %}{% trans "Credentials complete" %}{% else %}{% trans "Credentials missing" %}{% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="card flex items-center gap-3 px-4 py-3">
+            <span class="h-2 w-2 rounded-full {% if twilio_ready %}bg-positive{% else %}bg-brand{% endif %}" aria-hidden="true"></span>
+            <div class="min-w-0">
+                <p class="text-xs font-bold">{% trans "Twilio WhatsApp" %}</p>
+                <p class="text-[0.68rem] text-subtle">{% if twilio_ready %}{% trans "Credentials complete" %}{% else %}{% trans "Credentials missing" %}{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="space-y-5">
+            {% for card in cards %}
+            <section class="card overflow-hidden">
+                <div class="flex items-start gap-3 border-b border-line bg-surface px-5 py-4">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand" aria-hidden="true">
+                        {% if card.icon == "spark" %}
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3.5M12 17.5V21M4.5 12H8M16 12h3.5M6.7 6.7l2.4 2.4M14.9 14.9l2.4 2.4M17.3 6.7l-2.4 2.4M9.1 14.9l-2.4 2.4"/>
+                        </svg>
+                        {% elif card.icon == "cloud" %}
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17.2 9.4 3.8 3.8 0 0 1 17 18H7Z"/>
+                        </svg>
+                        {% else %}
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.04 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z"/>
+                        </svg>
+                        {% endif %}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-subtle">{{ card.eyebrow }}</p>
+                        <h2 class="mt-0.5 text-base font-bold">{{ card.title }}</h2>
+                        <p class="mt-1 text-xs text-subtle">{{ card.description }}</p>
+                    </div>
+                    {% if card.id == "odoo" %}
+                    <span class="badge {% if dev_mode_effective %}badge-green{% else %}badge-muted{% endif %}">
+                        {% if dev_mode_effective %}{% trans "DEV on" %}{% else %}{% trans "Live CRM" %}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 gap-5 px-5 py-5 sm:grid-cols-2">
+                    {% for item in card.items %}
+                    <div class="{% if item.name == 'dev_mode' or item.name == 'openrouter_api_key' %}sm:col-span-2{% endif %}">
+                        <div class="mb-1.5 flex flex-wrap items-center gap-2">
+                            <label for="{{ item.field.id_for_label }}" class="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-subtle">{{ item.field.label }}</label>
+                            {% if item.source == "database" %}
+                            <span class="badge badge-green">{% trans "Saved here" %}</span>
+                            {% elif item.source == "environment" %}
+                            <span class="badge badge-muted">.env</span>
+                            {% else %}
+                            <span class="badge badge-brand">{% trans "Not set" %}</span>
+                            {% endif %}
+                        </div>
+                        {{ item.field }}
+                        {% if item.is_secret and item.effective %}
+                        <p class="mt-1.5 text-[0.68rem] text-subtle" dir="ltr">
+                            {% trans "Effective now" %}: <span class="font-mono text-ink">{{ item.effective }}</span>
+                        </p>
+                        {% endif %}
+                        {% if item.clear_field %}
+                        <label class="mt-2 flex items-start gap-2 text-[0.68rem] leading-relaxed text-subtle">
+                            {{ item.clear_field }}
+                            <span>{% trans "Use the .env value instead (clears the saved secret)" %}</span>
+                        </label>
+                        {% endif %}
+                        {% if item.field.help_text %}
+                        <p class="mt-1.5 text-[0.68rem] leading-relaxed text-subtle">{{ item.field.help_text }}</p>
+                        {% endif %}
+                        {% for error in item.field.errors %}
+                        <p class="mt-1.5 text-xs font-medium text-brand">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        </div>
+
+        <div class="card mt-6 flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-subtle">
+                {% if updated_at %}
+                {% blocktrans with when=updated_at|date:"Y-m-d H:i" %}Last saved {{ when }}{% endblocktrans %}{% if updated_by %} {% blocktrans with who=updated_by.get_username %}by {{ who }}{% endblocktrans %}{% endif %}.
+                {% else %}
+                {% trans "Nothing saved here yet — every value comes from the environment." %}
+                {% endif %}
+            </p>
+            <div class="flex items-center gap-2">
+                <a href="{% url 'dashboard' %}" class="btn btn-ghost">{% trans "Cancel" %}</a>
+                <button type="submit" class="btn btn-primary">{% trans "Save settings" %}</button>
+            </div>
+        </div>
+    </form>
+
+    <p class="mt-5 text-[0.7rem] leading-relaxed text-subtle">
+        {% trans "Precedence: a value saved here wins over the environment; blank fields keep using .env (OPENROUTER_API_KEY, ODOO_*, TWILIO_*, DEV_MODE). Secrets are never shown in full." %}
+    </p>
+</div>
+{% endblock %}

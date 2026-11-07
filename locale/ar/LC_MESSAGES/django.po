@@ -101,125 +101,73 @@ msgstr "مكتب مباشر"
 msgid "POWR Concierge"
 msgstr "POWR كونسيرج"
 
-#: assistant/templates/assistant/chat.html:11
-msgid "Partnership intake, qualification and hand-off — the same assistant that answers WhatsApp, now in your browser."
-msgstr "استقبال طلبات الشراكة وتأهيلها وتسليمها — المساعد نفسه الذي يرد على واتساب، الآن في متصفحك."
-
-#: assistant/templates/assistant/chat.html:14
+#: assistant/templates/assistant/chat.html:21
 msgid "Enterprise"
 msgstr "للمؤسسات"
 
-#: assistant/templates/assistant/chat.html:26
+#: assistant/templates/assistant/chat.html:33
 msgid "Online · replies instantly"
 msgstr "متصل · يرد فوراً"
 
-#: assistant/templates/assistant/chat.html:29
+#: assistant/templates/assistant/chat.html:36
 msgid "Web channel"
 msgstr "قناة الويب"
-
-#: assistant/templates/assistant/chat.html:35
-msgid "You"
-msgstr "أنت"
 
 #: assistant/templates/assistant/chat.html:37
 msgid "Connection lost. Please try again."
 msgstr "انقطع الاتصال. يرجى المحاولة مرة أخرى."
 
-#: assistant/templates/assistant/chat.html:38
+#: assistant/templates/assistant/chat.html:43
 msgid "No response received."
 msgstr "لم يتم استلام رد."
 
-#: assistant/templates/assistant/chat.html:41
+#: assistant/templates/assistant/chat.html:45
+msgid "Today"
+msgstr "اليوم"
+
+#: assistant/templates/assistant/chat.html:49
 msgid "Welcome to POWR Concierge. Share your brand, the platform and your campaign budget, and I will prepare a media proposal for you."
 msgstr "مرحباً بك في POWR كونسيرج. شاركنا اسم علامتك التجارية والمنصة وميزانية حملتك، وسنُعدّ لك عرضاً إعلامياً."
 
-#: assistant/templates/assistant/chat.html:48
+#: assistant/templates/assistant/chat.html:56
+msgid "Suggestions"
+msgstr "اقتراحات"
+
+#: assistant/templates/assistant/chat.html:57
 msgid "Media kit and pricing"
 msgstr "الملف الإعلامي والأسعار"
 
-#: assistant/templates/assistant/chat.html:49
+#: assistant/templates/assistant/chat.html:58
 msgid "YouTube integration package"
 msgstr "باقة التكامل على يوتيوب"
 
-#: assistant/templates/assistant/chat.html:50
+#: assistant/templates/assistant/chat.html:59
 msgid "Speak to the sales team"
 msgstr "التحدث مع فريق المبيعات"
 
-#: assistant/templates/assistant/chat.html:56
+#: assistant/templates/assistant/chat.html:65
 msgid "Describe your campaign…"
 msgstr "صِف حملتك…"
 
-#: assistant/templates/assistant/chat.html:57
+#: assistant/templates/assistant/chat.html:66
 msgid "Message"
 msgstr "الرسالة"
 
-#: assistant/templates/assistant/chat.html:59
+#: assistant/templates/assistant/chat.html:68
 msgid "Send message"
 msgstr "إرسال الرسالة"
 
-#: assistant/templates/assistant/chat.html:67
-msgid "Every web message is logged for audit and appears in History."
-msgstr "تُسجَّل كل رسالة عبر الويب لأغراض التدقيق وتظهر في السجل."
+#: assistant/templates/assistant/chat.html:76
+msgid "Logged for audit · appears in History"
+msgstr "مسجَّل لأغراض التدقيق · يظهر في السجل"
 
-#: assistant/templates/assistant/chat.html:69
+#: assistant/templates/assistant/chat.html:78
 msgid "to send"
 msgstr "للإرسال"
 
-#: assistant/templates/assistant/chat.html:71
+#: assistant/templates/assistant/chat.html:80
 msgid "for a new line"
 msgstr "لسطر جديد"
-
-#: assistant/templates/assistant/chat.html:79
-msgid "What this desk handles"
-msgstr "ما يتولاه هذا المكتب"
-
-#: assistant/templates/assistant/chat.html:86
-msgid "Package pricing"
-msgstr "تسعير الباقات"
-
-#: assistant/templates/assistant/chat.html:87
-msgid "Instant rates for YouTube, TikTok, Instagram, Snapchat and X."
-msgstr "أسعار فورية ليوتيوب وتيك توك وإنستقرام وسناب شات وإكس."
-
-#: assistant/templates/assistant/chat.html:95
-msgid "Discount governance"
-msgstr "حوكمة الخصومات"
-
-#: assistant/templates/assistant/chat.html:96
-msgid "Applies the approved ladder and escalates anything above the limit."
-msgstr "يطبّق سلّم الخصومات المعتمد ويصعّد أي طلب يتجاوز الحد."
-
-#: assistant/templates/assistant/chat.html:104
-msgid "Qualified leads"
-msgstr "الفرص المؤهلة"
-
-#: assistant/templates/assistant/chat.html:105
-msgid "Creates an Odoo opportunity with the contact and campaign details."
-msgstr "ينشئ فرصة في Odoo مع بيانات التواصل وتفاصيل الحملة."
-
-#: assistant/templates/assistant/chat.html:112
-msgid "Session"
-msgstr "الجلسة"
-
-#: assistant/templates/assistant/chat.html:115
-msgid "Channel"
-msgstr "القناة"
-
-#: assistant/templates/assistant/chat.html:116
-msgid "Web chatbot"
-msgstr "المساعد الآلي على الويب"
-
-#: assistant/templates/assistant/chat.html:119
-msgid "Customer number"
-msgstr "رقم العميل"
-
-#: assistant/templates/assistant/chat.html:123
-msgid "CRM"
-msgstr "نظام إدارة العملاء"
-
-#: assistant/templates/assistant/chat.html:127
-msgid "Language"
-msgstr "اللغة"
 
 #: assistant/templates/assistant/chat_detail.html:3
 #: assistant/templates/assistant/chat_detail.html:13
@@ -585,3 +533,136 @@ msgstr "الإنجليزية"
 #: config/settings.py:75
 msgid "Arabic"
 msgstr "العربية"
+
+# --- Desk access (login page, nav and logout) -------------------------------
+#: assistant/templates/assistant/login.html:7
+msgid "Sign in"
+msgstr "تسجيل الدخول"
+
+#: assistant/templates/assistant/login.html:54
+msgid "Sign in to the desk"
+msgstr "تسجيل الدخول إلى المكتب"
+
+#: assistant/templates/assistant/login.html:55
+msgid "Authorised access only — one seat, one account."
+msgstr "الدخول للمصرّح لهم فقط — مقعد واحد وحساب واحد."
+
+#: assistant/templates/assistant/login.html:63
+msgid "Enter your username and password to continue."
+msgstr "أدخل اسم المستخدم وكلمة المرور للمتابعة."
+
+#: assistant/templates/assistant/login.html:71 assistant/views.py:163
+msgid "Username"
+msgstr "اسم المستخدم"
+
+#: assistant/templates/assistant/login.html:75 assistant/views.py:168
+msgid "Password"
+msgstr "كلمة المرور"
+
+#: assistant/templates/assistant/login.html:89
+msgid "POWR partnership desk"
+msgstr "مكتب شراكات POWR"
+
+#: assistant/templates/assistant/login.html:95
+msgid "Sessions are logged. Sign-in is restricted to the allow-listed account."
+msgstr "تُسجَّل الجلسات، وتسجيل الدخول مقصور على الحساب المصرّح له."
+
+#: assistant/templates/assistant/base.html:77
+msgid "Sign out"
+msgstr "تسجيل الخروج"
+
+#: assistant/views.py:154
+msgid "Those credentials do not match the desk account."
+msgstr "بيانات الدخول لا تطابق حساب المكتب."
+
+#: assistant/views.py:175
+msgid "This desk is restricted to an authorised account."
+msgstr "هذا المكتب مقصور على حساب مصرّح له."
+
+#: assistant/views.py:202
+msgid "You have been signed out."
+msgstr "تم تسجيل خروجك."
+
+# --- Integration settings console -------------------------------------------
+msgid "Settings"
+msgstr "الإعدادات"
+
+msgid "Integration settings"
+msgstr "إعدادات التكامل"
+
+msgid "Test console"
+msgstr "منصة الاختبار"
+
+msgid "Point the assistant at your own OpenRouter, Odoo and Twilio accounts while you test. Anything you leave blank falls back to the server's .env values, so production keeps running untouched."
+msgstr "وجّه المساعد إلى حساباتك الخاصة في OpenRouter وOdoo وTwilio أثناء الاختبار. أي حقل تتركه فارغاً يعود إلى قيم .env على الخادم، لذا يبقى تشغيل الإنتاج كما هو."
+
+msgid "Tester"
+msgstr "مختبر"
+
+msgid "Key available"
+msgstr "المفتاح متوفر"
+
+msgid "No API key"
+msgstr "لا يوجد مفتاح API"
+
+msgid "Odoo CRM"
+msgstr "Odoo CRM"
+
+msgid "DEV mode · mock leads"
+msgstr "وضع التطوير · فرص تجريبية"
+
+msgid "Credentials complete"
+msgstr "بيانات الدخول مكتملة"
+
+msgid "Credentials missing"
+msgstr "بيانات الدخول ناقصة"
+
+msgid "Twilio WhatsApp"
+msgstr "Twilio واتساب"
+
+msgid "DEV on"
+msgstr "التطوير مفعّل"
+
+msgid "Live CRM"
+msgstr "CRM مباشر"
+
+msgid "Saved here"
+msgstr "محفوظ هنا"
+
+msgid "Not set"
+msgstr "غير مضبوط"
+
+msgid "Effective now"
+msgstr "القيمة الفعّالة الآن"
+
+msgid "Last saved %(when)s"
+msgstr "آخر حفظ %(when)s"
+
+msgid "by %(who)s"
+msgstr "بواسطة %(who)s"
+
+msgid "Nothing saved here yet — every value comes from the environment."
+msgstr "لم يُحفظ شيء هنا بعد — كل القيم تأتي من متغيرات البيئة."
+
+msgid "Cancel"
+msgstr "إلغاء"
+
+msgid "Save settings"
+msgstr "حفظ الإعدادات"
+
+msgid "Precedence: a value saved here wins over the environment; blank fields keep using .env (OPENROUTER_API_KEY, ODOO_*, TWILIO_*, DEV_MODE). Secrets are never shown in full."
+msgstr "الأولوية: القيمة المحفوظة هنا تتقدم على متغيرات البيئة، والحقول الفارغة تستمر في استخدام .env ‏(OPENROUTER_API_KEY، ODOO_*، TWILIO_*، DEV_MODE). لا تُعرض الأسرار كاملة أبداً."
+
+msgid "Integration settings saved."
+msgstr "تم حفظ إعدادات التكامل."
+
+msgid "Please review the highlighted fields."
+msgstr "يرجى مراجعة الحقول المحددة."
+
+msgid "Use the .env value instead (clears the saved secret)"
+msgstr "استخدم قيمة .env بدلاً من ذلك (يمسح السر المحفوظ)"
+
+msgid "Secure sign-in"
+msgstr "دخول آمن"
+
+

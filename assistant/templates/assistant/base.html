@@ -35,6 +35,7 @@
                 <a href="{% url 'chat' %}" class="nav-link {% if request.resolver_match.url_name == 'chat' %}is-active{% endif %}">{% trans "Chatbot" %}</a>
                 <a href="{% url 'chat_history' %}" class="nav-link {% if request.resolver_match.url_name == 'chat_history' or request.resolver_match.url_name == 'chat_detail' %}is-active{% endif %}">{% trans "History" %}</a>
                 <a href="{% url 'leads' %}" class="nav-link {% if request.resolver_match.url_name == 'leads' or request.resolver_match.url_name == 'lead_detail' %}is-active{% endif %}">{% trans "Leads" %}</a>
+                <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}is-active{% endif %}">{% trans "Settings" %}</a>
             </nav>
 
             <div class="flex items-center gap-2">
@@ -66,6 +67,23 @@
                     </svg>
                 </button>
 
+                {% if user.is_authenticated %}
+                <!-- Signed-in seat: the one allow-listed account (see assistant/auth.py) -->
+                <span class="hidden items-center gap-2 rounded-full border border-line bg-surface-2 py-1 pe-2.5 ps-1 lg:inline-flex">
+                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-[0.62rem] font-bold uppercase text-white" aria-hidden="true">{{ user.username|first }}</span>
+                    <span class="text-xs font-semibold" dir="ltr">{{ user.username }}</span>
+                </span>
+                <form method="post" action="{% url 'logout' %}" class="inline-flex">
+                    {% csrf_token %}
+                    <button type="submit" class="icon-btn" title="{% trans 'Sign out' %}" aria-label="{% trans 'Sign out' %}">
+                        <svg class="h-[1.05rem] w-[1.05rem] rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 8l-4 4 4 4M6 12h9"/>
+                        </svg>
+                    </button>
+                </form>
+                {% endif %}
+
                 <a href="{% url 'chat' %}" class="btn btn-primary hidden sm:inline-flex">
                     <span>{% trans "Open chatbot" %}</span>
                     <svg class="h-[0.9rem] w-[0.9rem] rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
@@ -81,6 +99,7 @@
             <a href="{% url 'chat' %}" class="nav-link {% if request.resolver_match.url_name == 'chat' %}is-active{% endif %}">{% trans "Chatbot" %}</a>
             <a href="{% url 'chat_history' %}" class="nav-link {% if request.resolver_match.url_name == 'chat_history' or request.resolver_match.url_name == 'chat_detail' %}is-active{% endif %}">{% trans "History" %}</a>
             <a href="{% url 'leads' %}" class="nav-link {% if request.resolver_match.url_name == 'leads' or request.resolver_match.url_name == 'lead_detail' %}is-active{% endif %}">{% trans "Leads" %}</a>
+            <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}is-active{% endif %}">{% trans "Settings" %}</a>
         </nav>
     </header>
 

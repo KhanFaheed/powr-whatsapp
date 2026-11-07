@@ -1,23 +1,42 @@
-import os
 import logging
 from typing import Optional
 from openai import OpenAI, APIError
 from pydantic import ValidationError
 
+from .runtime_settings import openrouter_api_key
 from .schemas import ExtractedRequest  # validated in one place (services/schemas.py)
 
 logger = logging.getLogger(__name__)
 
 # FIX 1: base_url MUST include /api/v1
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ["OPENROUTER_API_KEY"],   # FIX 2: fail loud if missing
-    timeout=15.0,                              # FIX 3: OpenRouter adds latency
-    default_headers={
-        "HTTP-Referer": "https://powr-bot.rankforgeacademy.in",
-        "X-Title": "POWR WhatsApp Bot",
-    },
-)
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# One client per API key; rebuilt automatically when the key changes in
+# Settings (the desk can swap keys without restarting the server).
+_clients = {}
+
+
+def _client():
+    api_key = openrouter_api_key()
+    if not api_key:
+        raise RuntimeError(
+            "OpenRouter is not configured — add an API key in Settings, "
+            "or set OPENROUTER_API_KEY."
+        )
+    client = _clients.get(api_key)
+    if client is None:
+        client = OpenAI(
+            base_url=OPENROUTER_BASE_URL,
+            api_key=api_key,                    # FIX 2: fail loud if missing
+            timeout=15.0,                       # FIX 3: OpenRouter adds latency
+            default_headers={
+                "HTTP-Referer": "https://powr-bot.rankforgeacademy.in",
+                "X-Title": "POWR WhatsApp Bot",
+            },
+        )
+        _clients.clear()
+        _clients[api_key] = client
+    return client
 
 # ExtractedRequest is re-exported for backwards compatibility
 __all__ = ["ExtractedRequest", "extract", "PROMPT", "MODELS"]
@@ -121,6 +140,7 @@ def extract(text: str, context: Optional[dict] = None) -> ExtractedRequest:
                 + f"\n\nNew user message: {text}"
             )
 
+    client = _client()
     for model_name in MODELS:
         try:
             resp = client.chat.completions.create(

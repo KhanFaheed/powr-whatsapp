@@ -60,6 +60,23 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {"default": dj_database_url.config(default="sqlite:///db.sqlite3")}
 
+# ---------------------------- Access control ----------------------------
+# The desk is the only surface that spends OpenRouter tokens. Django
+# superusers (createsuperuser / create_waleed) may always sign in — to the desk
+# and to /admin/ — with the same credentials; every other account must be
+# allow-listed. Set a comma-separated POWR_ALLOWED_USERNAMES to extend the
+# seat; see assistant/auth.py.
+ALLOWED_LOGIN_USERNAMES = [
+    name.strip().lower()
+    for name in os.environ.get("POWR_ALLOWED_USERNAMES", "waleed").split(",")
+    if name.strip()
+]
+AUTHENTICATION_BACKENDS = ["assistant.auth.AllowListedUserBackend"]
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "dashboard"
+LOGOUT_REDIRECT_URL = "login"
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 # Project-level static files: only the compiled Tailwind output is published.

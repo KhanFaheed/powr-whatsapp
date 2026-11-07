@@ -37,7 +37,7 @@
     </div>
 
     <!-- Messages -->
-    <div class="chat-scroll h-[32rem] space-y-4 overflow-y-auto bg-surface-2 p-5">
+    <div class="chat-scroll chat-surface h-[32rem] space-y-4 overflow-y-auto p-5">
         {% for msg in inbound_messages %}
         <div class="flex justify-end">
             <div class="bubble bubble-out">
@@ -50,7 +50,7 @@
             <div class="avatar avatar-sm shrink-0" aria-hidden="true">P</div>
             <div class="bubble bubble-in">
                 <p class="whitespace-pre-wrap">{{ msg.outbound_reply }}</p>
-                <p class="bubble-meta">{% trans "POWR Concierge" %} · {{ msg.received_at|time:"H:i" }}</p>
+                <p class="bubble-meta">{{ msg.received_at|time:"H:i" }}</p>
             </div>
         </div>
         {% endif %}

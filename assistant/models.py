@@ -1,4 +1,5 @@
 import uuid
+from django.conf import settings
 from django.db import models
 
 
@@ -52,3 +53,94 @@ class LeadRecord(models.Model):
 
     def __str__(self):
         return f"{self.brand} — {self.platform} {self.format} · Tier {self.tier}"
+
+
+class IntegrationSettings(models.Model):
+    """Integration credentials entered by the tester from the desk UI.
+
+    Exactly one row lives in this table (``pk=1``). Every field is optional:
+    a blank value falls back to the matching environment variable, so
+    production keeps running on ``.env`` while Waleed can point the assistant at
+    his own OpenRouter / Odoo / Twilio accounts from ``/settings/`` without
+    touching the server. Resolution order lives in
+    ``assistant/services/runtime_settings.py``.
+    """
+
+    SINGLETON_PK = 1
+
+    openrouter_api_key = models.CharField(
+        "OpenRouter API key",
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Used for LLM extraction. Blank → OPENROUTER_API_KEY from the environment.",
+    )
+
+    odoo_url = models.CharField(
+        "Odoo URL",
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="e.g. https://acme.odoo.com — blank → ODOO_URL.",
+    )
+    odoo_db = models.CharField(
+        "Odoo database", max_length=120, blank=True, default="",
+        help_text="Blank → ODOO_DB.",
+    )
+    odoo_username = models.CharField(
+        "Odoo username", max_length=190, blank=True, default="",
+        help_text="Login e-mail of the Odoo user. Blank → ODOO_USERNAME.",
+    )
+    odoo_api_key = models.CharField(
+        "Odoo API key", max_length=255, blank=True, default="",
+        help_text="Revocable API key (not the password). Blank → ODOO_API_KEY.",
+    )
+    dev_mode = models.BooleanField(
+        "Odoo DEV mode",
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Unknown = use DEV_MODE from the environment. Yes = mock every CRM call.",
+    )
+
+    twilio_account_sid = models.CharField(
+        "Twilio account SID", max_length=64, blank=True, default="",
+        help_text="Blank → TWILIO_ACCOUNT_SID.",
+    )
+    twilio_auth_token = models.CharField(
+        "Twilio auth token", max_length=64, blank=True, default="",
+        help_text="Also validates webhook signatures. Blank → TWILIO_AUTH_TOKEN.",
+    )
+    twilio_whatsapp_from = models.CharField(
+        "Twilio WhatsApp sender", max_length=40, blank=True, default="",
+        help_text="e.g. whatsapp:+14155238886 — blank → TWILIO_WHATSAPP_FROM.",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = "Integration settings"
+        verbose_name_plural = "Integration settings"
+
+    def __str__(self):
+        return "Integration settings"
+
+    def save(self, *args, **kwargs):
+        # Collapse everything into a single row no matter who saves it. Dropping
+        # force_insert lets `objects.create()` update row #1 instead of blowing
+        # up with an IntegrityError on the second save.
+        self.pk = self.SINGLETON_PK
+        kwargs.pop("force_insert", None)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """Return the singleton row, or ``None`` when it was never saved."""
+        return cls.objects.filter(pk=cls.SINGLETON_PK).first()

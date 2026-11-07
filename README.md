@@ -328,7 +328,7 @@ npm run css:build             # compile assets/css/input.css -> static/dist/outp
 
 cp .env.example .env          # then fill in the values (see §8)
 python manage.py migrate
-python manage.py createsuperuser   # optional, for /admin
+python manage.py create_waleed     # the single allow-listed desk account (prints the password)
 python manage.py runserver 8000
 ```
 
@@ -344,9 +344,61 @@ Then open:
 | `http://localhost:8000/history/` | Chat history + per-conversation view (stores bot replies too) |
 | `http://localhost:8000/leads/` | Leads, filter by stage / escalation |
 | `http://localhost:8000/admin/` | Django admin |
+| `http://localhost:8000/settings/` | **Integration settings** — the tester's console (DB values override `.env`) |
+| `http://localhost:8000/login/` | **Sign-in** — every page above requires it |
 | `http://localhost:8000/health/` | `ok` (for your load balancer) |
 | `POST /webhook/` | Twilio WhatsApp webhook |
-| `POST /api/chat/` | JSON endpoint used by the chatbot |
+| `POST /api/chat/` | JSON endpoint used by the chatbot (signed-in seat only) |
+
+### Desk access — superusers and the allow-list
+
+The web desk (dashboard, chatbot, history, leads, `/api/chat/` and `/admin/`) sits behind a single
+sign-in page at **`/login/`**. Any Django **superuser** — created with
+`python manage.py createsuperuser` or `python manage.py create_waleed` — signs in with the same
+credentials to both the desk and `/admin/`. Non-superuser accounts must be allow-listed through
+`POWR_ALLOWED_USERNAMES` (`waleed` by default). The rule lives in `assistant/auth.py` and is
+enforced twice:
+
+* `AllowListedUserBackend` refuses `authenticate()` and session checks for every account that is
+  neither a superuser nor allow-listed;
+* `desk_login_required` guards each view — JSON callers get `401` (the chat UI redirects to sign-in),
+  and a session belonging to an account that is no longer allowed in is dropped on sight.
+
+That keeps the OpenRouter budget tied to a handful of trusted accounts. Waleed is greeted in Arabic
+on the sign-in page, in a dashboard banner and in a toast right after signing in.
+
+```bash
+python manage.py create_waleed                                # create + print a password
+WALEED_PASSWORD='…' python manage.py create_waleed --reset    # rotate the password
+python manage.py create_waleed --password '…'                 # explicit password
+```
+
+### Integration settings — `/settings/` (Waleed's test console)
+
+The integrations (OpenRouter, Odoo, Twilio) are resolved **per call**, from the single
+`IntegrationSettings` row first and the environment second:
+
+```
+value = IntegrationSettings row (if that field is non-blank)
+        else os.environ[OPENROUTER_API_KEY | ODOO_* | TWILIO_* | DEV_MODE]
+        else ""            →  the client raises a clear "not configured" error
+```
+
+That means production can keep everything in `.env` untouched, while a tester points the
+assistant at his own accounts from `/settings/` — no restart, no code change:
+
+* the model is a **singleton** (`pk=1`; saving always edits that row),
+* non-secret fields fall back to `.env` when left blank,
+* **secrets are write-only** — they are never re-rendered into the HTML. Leaving the box empty
+  keeps the stored value; ticking “Use the .env value instead” clears it,
+* every field shows where its effective value comes from (`Saved here` / `.env` / `Not set`),
+  plus a masked preview (`••••ab77`) for secrets,
+* `DEV mode` is a tri-state: *Unknown* = `DEV_MODE` from the environment, *Yes* = mock every
+  Odoo call, *No* = always hit the real CRM,
+* the row is also editable from `/admin/` (Integration settings) if you prefer.
+
+`assistant/services/runtime_settings.py` is the single resolver used by
+`extractor.py` (OpenRouter), `odoo_client.py` and `twilio_client.py`/webhook signature checks.
 
 **Two ways to test the webhook without WhatsApp:**
 
@@ -504,7 +556,16 @@ Nothing secret is committed — `.env.example` lists the names only.
 - **Idempotency**: the webhook stores `MessageSid` as a unique key, so Twilio retries never create
   duplicate messages or duplicate leads.
 - **CSRF** enabled site-wide; only the signature-validated webhook and the JSON chat endpoint are
-  `csrf_exempt`.
+  `csrf_exempt`. The chat endpoint is session-authenticated and rejects cross-origin `Origin`s, so
+  the exemption cannot be abused by another site.
+- **Restricted access**: the desk, the chat API and `/admin/` are behind `/login/`; only Django
+  superusers (`createsuperuser` / `create_waleed`) and usernames listed in `POWR_ALLOWED_USERNAMES`
+  (`waleed` by default) can authenticate. Every operator view is wrapped in `desk_login_required`
+  (`assistant/auth.py`), so no anonymous visitor can trigger an OpenRouter call.
+- **Credential handling**: integration secrets can live in the database (`/settings/`) or in `.env`.
+  The DB row is editable only by the allow-listed seat (plus Django admin staff), secrets are never
+  rendered back into a page (masked preview only), and clients build their credentials per call so a
+  rotated key takes effect immediately.
 - **Least privilege**: the Odoo API key is a user key that can be revoked at any time; the bot only
   calls `crm.lead:create`.
 - **No PII in logs**: only phone numbers and reply previews are logged.
@@ -514,7 +575,7 @@ Nothing secret is committed — `.env.example` lists the names only.
 ## 10. Testing
 
 ```bash
-python manage.py test assistant   # 23 unit + flow tests (validation, pricing, state machine)
+python manage.py test assistant   # 59 unit, flow and access-control tests
 python dev_test.py --test-all     # cases A, B, C through the real agent (exit code 0/1)
 python dev_test.py --test A       # single case
 python dev_test.py                # interactive REPL — 'reset' clears state, 'quit' exits

@@ -1,35 +1,43 @@
-import os
-import json
 import logging
 import requests
 
-logger = logging.getLogger(__name__)
+from .runtime_settings import twilio_config
 
-ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
-AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
-FROM = os.environ["TWILIO_WHATSAPP_FROM"]
+logger = logging.getLogger(__name__)
 
 
 def send_whatsapp(to, body):
-    """Send WhatsApp message via Twilio REST API directly
-    
-    Using direct REST API call to avoid SDK issues with sandbox
+    """Send a WhatsApp message via the Twilio REST API.
+
+    Credentials are resolved per call (desk settings first, then ``.env``) so a
+    tester can switch accounts from /settings/ without a restart.
     """
+    config = twilio_config()
+    if not all(config.values()):
+        raise RuntimeError(
+            "Twilio is not configured — add the account SID, auth token and sender "
+            "in Settings, or set TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM."
+        )
+
+    account_sid = config["account_sid"]
+    auth_token = config["auth_token"]
+    from_number = config["from_number"]
+
     try:
-        url = f"https://api.twilio.com/2010-04-01/Accounts/{ACCOUNT_SID}/Messages.json"
-        
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+
         data = {
-            "From": FROM,
+            "From": from_number,
             "To": to,
             "Body": body
         }
-        
+
         response = requests.post(
             url,
             data=data,
-            auth=(ACCOUNT_SID, AUTH_TOKEN)
+            auth=(account_sid, auth_token)
         )
-        
+
         if response.status_code in [200, 201]:
             result = response.json()
             logger.info(f"WhatsApp sent to {to}: {result.get('sid')}")
@@ -37,7 +45,7 @@ def send_whatsapp(to, body):
         else:
             logger.error(f"Twilio error: {response.status_code} - {response.text}")
             raise Exception(f"Twilio API error: {response.status_code} - {response.text}")
-            
+
     except Exception as e:
         logger.exception(f"Failed to send WhatsApp to {to}: {e}")
         raise

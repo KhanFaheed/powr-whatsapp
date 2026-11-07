@@ -4,6 +4,9 @@ from . import views
 urlpatterns = [
     path("webhook/", views.whatsapp_webhook, name="webhook"),
     path("health/", views.health, name="health"),
+    # Desk access — one allow-listed seat (see assistant/auth.py)
+    path("login/", views.DeskLoginView.as_view(), name="login"),
+    path("logout/", views.DeskLogoutView.as_view(), name="logout"),
     # Language switch (EN / AR) — flips the locale and flashes a confirmation
     path("language/", views.set_language_switch, name="set_language"),
     # Analytics Dashboard (Homepage) & POWR Concierge chatbot
@@ -16,4 +19,6 @@ urlpatterns = [
     # Leads Management
     path("leads/", views.leads_view, name="leads"),
     path("leads/<uuid:lead_id>/", views.lead_detail_view, name="lead_detail"),
+    # Integration settings — the tester's console (DB values override .env)
+    path("settings/", views.integration_settings_view, name="settings"),
 ]

@@ -2,24 +2,57 @@
 
 Run with:  python manage.py test assistant -v 2
 """
+import json
+import os
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib import messages
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import RequestFactory, TestCase
 from django.utils import translation
 from django.utils.translation import ngettext
 from pydantic import ValidationError
 
+from assistant.auth import is_allowed_user
 from assistant.context_processors import MAX_FLASH_MESSAGES, flash_messages
-from assistant.models import ConversationState, InboundMessage, LeadRecord
+from assistant.models import (
+    ConversationState,
+    InboundMessage,
+    IntegrationSettings,
+    LeadRecord,
+)
 from assistant.services import agent
+from assistant.services import extractor, odoo_client, runtime_settings, twilio_client
 from assistant.services.extractor import ExtractedRequest
 from assistant.services.price_sheet import build_quote, describe_row
 from assistant.services.schemas import (
     clean_email, clean_person_name, normalize_format, normalize_platform,
     normalize_tier, QuoteRequest,
 )
+
+# The single allow-listed seat (see assistant/auth.py and settings).
+DESK_USERNAME = "waleed"
+DESK_PASSWORD = "desk-test-password-123"
+
+
+class DeskClientMixin:
+    """Signs the test client in as the allow-listed desk account."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.desk_user = get_user_model().objects.create_user(
+            username=DESK_USERNAME,
+            password=DESK_PASSWORD,
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    def setUp(self):
+        self.client.force_login(self.desk_user)
 
 
 class NormalisationTests(TestCase):
@@ -235,7 +268,7 @@ class ConversationFlowTests(TestCase):
         self.assertEqual(lead.stage, "Escalated")
 
 
-class LanguageSwitchTests(TestCase):
+class LanguageSwitchTests(DeskClientMixin, TestCase):
     """The EN/AR toggle: locale plumbing, RTL shell and the messages-framework flash."""
 
     def test_default_language_is_english_ltr(self):
@@ -290,14 +323,18 @@ class LanguageSwitchTests(TestCase):
         self.assertContains(response, "Dashboard")
 
 
-class ConciergeChatbotTests(TestCase):
+class ConciergeChatbotTests(DeskClientMixin, TestCase):
     """The old "simulator" is now the POWR Concierge chatbot."""
 
     def test_chatbot_page_branding(self):
         response = self.client.get("/chat/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "POWR Concierge")
-        self.assertContains(response, "Every web message is logged")
+        self.assertContains(response, "Logged for audit")
+        # The right-hand "desk context" column was removed so the workspace
+        # reads as a single full-width enterprise chat surface.
+        self.assertNotContains(response, "What this desk handles")
+        self.assertNotContains(response, "Session")
         self.assertNotContains(response, "Simulator")
         self.assertNotContains(response, "simulator")
 
@@ -454,7 +491,7 @@ class PlanRevisionTests(TestCase):
         self.assertEqual(lead.stage, "Escalated")
 
 
-class FlashMessageHygieneTests(TestCase):
+class FlashMessageHygieneTests(DeskClientMixin, TestCase):
     """The toast stack must never dump app data, nor pile up.
 
     Regression: the History page used to expose its queryset as ``messages``,
@@ -465,6 +502,7 @@ class FlashMessageHygieneTests(TestCase):
     PHONE = "whatsapp:+966500000999"
 
     def setUp(self):
+        super().setUp()
         InboundMessage.objects.create(
             twilio_sid="test-history-1",
             phone=self.PHONE,
@@ -512,3 +550,324 @@ class FlashMessageHygieneTests(TestCase):
         self.assertEqual(len(texts), len(set(texts)))
         self.assertEqual(texts.count("Interface language set to English."), 1)
 
+
+
+class DeskAccessTests(TestCase):
+    """Superusers and the allow-listed seat guard the desk (and its OpenRouter spend)."""
+
+    PASSWORD = "desk-test-password-123"
+
+    def _create(self, username, **extra):
+        return get_user_model().objects.create_user(
+            username=username, password=self.PASSWORD, **extra
+        )
+
+    def test_login_page_is_reachable_without_a_session(self):
+        response = self.client.get("/login/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "أهلاً وسهلاً يا وليد")     # Arabic greeting
+        self.assertContains(response, 'name="username"')
+        self.assertContains(response, 'name="password"')
+
+    def test_operator_pages_redirect_anonymous_users_to_the_login_page(self):
+        for url in ("/", "/chat/", "/history/", "/leads/", "/settings/"):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response["Location"].startswith("/login/"))
+
+    def test_chat_api_refuses_anonymous_callers_and_saves_nothing(self):
+        response = self.client.post(
+            "/api/chat/",
+            data=json.dumps({"text": "hello"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "Authentication required")
+        self.assertEqual(InboundMessage.objects.count(), 0)
+
+    def test_allow_listed_account_signs_in_and_is_greeted_in_arabic(self):
+        self._create(DESK_USERNAME)
+        response = self.client.post(
+            "/login/",
+            {"username": DESK_USERNAME, "password": self.PASSWORD},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "أهلاً وسهلاً يا وليد")
+        self.assertContains(response, "Dashboard")
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_other_accounts_cannot_sign_in_even_with_a_valid_password(self):
+        # A non-superuser staff account is not allow-listed, so the desk and
+        # the admin stay closed to it.
+        self._create("someone-else", is_staff=True)
+        response = self.client.post(
+            "/login/", {"username": "someone-else", "password": self.PASSWORD}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, "do not match the desk account")
+
+    def test_superuser_outside_the_allow_list_signs_in_to_the_desk_and_admin(self):
+        # ``createsuperuser`` account: same credentials for both surfaces.
+        superuser = self._create("faheed", is_staff=True, is_superuser=True)
+
+        desk = self.client.post(
+            "/login/", {"username": "faheed", "password": self.PASSWORD}, follow=True
+        )
+        self.assertEqual(desk.status_code, 200)
+        self.assertContains(desk, "Dashboard")
+        self.assertIn("_auth_user_id", self.client.session)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), superuser.pk)
+
+        self.client.logout()
+        admin = self.client.post(
+            "/admin/login/",
+            {"username": "faheed", "password": self.PASSWORD, "next": "/admin/"},
+            follow=True,
+        )
+        self.assertEqual(admin.status_code, 200)
+        # The project rebrands the admin index (<title>Desk data</title>), so
+        # assert on the rendered dashboard rather than Django's default text.
+        self.assertContains(admin, "Desk data")
+        self.assertIn(("/admin/", 302), admin.redirect_chain)
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_backend_only_authenticates_the_allow_listed_account(self):
+        self._create(DESK_USERNAME)
+        self._create("someone-else")
+        self.assertIsNone(authenticate(username="someone-else", password=self.PASSWORD))
+        self.assertIsNotNone(authenticate(username=DESK_USERNAME, password=self.PASSWORD))
+
+    def test_backend_authenticates_a_superuser_outside_the_allow_list(self):
+        superuser = self._create("faheed", is_staff=True, is_superuser=True)
+        self.assertIsNotNone(authenticate(username="faheed", password=self.PASSWORD))
+        self.assertTrue(is_allowed_user(superuser))
+        self.assertFalse(is_allowed_user(self._create("someone-else")))
+        self.assertEqual(self.client.get("/admin/").status_code, 302)  # still closed
+
+    def test_stale_session_for_another_account_is_dropped(self):
+        other = self._create("someone-else")
+        self.client.force_login(other)
+        response = self.client.get("/chat/")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("/login/"))
+        # The stale credential is gone: the next request still needs a sign-in.
+        self.assertEqual(self.client.get("/").status_code, 302)
+
+    def test_sign_out_is_post_only_and_ends_the_session(self):
+        self.client.force_login(self._create(DESK_USERNAME))
+        self.assertEqual(self.client.get("/logout/").status_code, 405)
+        response = self.client.post("/logout/")
+        self.assertRedirects(response, "/login/", fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_cross_origin_chat_calls_are_rejected(self):
+        self.client.force_login(self._create(DESK_USERNAME))
+        response = self.client.post(
+            "/api/chat/",
+            data=json.dumps({"text": "hello"}),
+            content_type="application/json",
+            HTTP_ORIGIN="https://evil.example",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(InboundMessage.objects.count(), 0)
+
+    def test_allow_listed_account_also_opens_the_django_admin(self):
+        self.client.force_login(
+            self._create(DESK_USERNAME, is_staff=True, is_superuser=True)
+        )
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
+
+
+class DeskAccountCommandTests(TestCase):
+    """`manage.py create_waleed` provisions the single testing seat."""
+
+    def test_command_creates_the_allow_listed_superuser(self):
+        call_command("create_waleed", password="S3cret-desk-pass", stdout=StringIO())
+        user = get_user_model().objects.get(username=DESK_USERNAME)
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password("S3cret-desk-pass"))
+
+    def test_command_refuses_a_username_outside_the_allow_list(self):
+        with self.assertRaises(CommandError):
+            call_command("create_waleed", username="someone-else", stdout=StringIO())
+
+
+
+class IntegrationSettingsResolutionTests(TestCase):
+    """Saved settings win over `.env`; blank fields keep using the environment."""
+
+    def test_environment_is_used_when_nothing_is_saved(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-key-1234"}):
+            self.assertEqual(runtime_settings.openrouter_api_key(), "env-key-1234")
+            self.assertEqual(
+                runtime_settings.source_of("openrouter_api_key"),
+                runtime_settings.SOURCE_ENVIRONMENT,
+            )
+
+    def test_saved_values_override_the_environment(self):
+        IntegrationSettings.objects.create(
+            openrouter_api_key="db-key-9999",
+            odoo_url="https://db.example.com/",
+        )
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-key-1234"}):
+            self.assertEqual(runtime_settings.openrouter_api_key(), "db-key-9999")
+            self.assertEqual(runtime_settings.odoo_url(), "https://db.example.com")
+            self.assertEqual(
+                runtime_settings.source_of("openrouter_api_key"),
+                runtime_settings.SOURCE_DATABASE,
+            )
+
+    def test_blank_fields_fall_back_to_the_environment(self):
+        IntegrationSettings.objects.create(odoo_db="")
+        with patch.dict(os.environ, {"ODOO_DB": "env-db"}):
+            self.assertEqual(runtime_settings.odoo_config()["db"], "env-db")
+            self.assertEqual(
+                runtime_settings.source_of("odoo_db"),
+                runtime_settings.SOURCE_ENVIRONMENT,
+            )
+
+    def test_missing_values_are_reported_as_missing(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "   "}):
+            self.assertEqual(
+                runtime_settings.source_of("openrouter_api_key"),
+                runtime_settings.SOURCE_MISSING,
+            )
+
+    def test_dev_mode_tri_state_prefers_the_saved_choice(self):
+        with patch.dict(os.environ, {"DEV_MODE": "true"}):
+            self.assertTrue(runtime_settings.dev_mode())
+            row = IntegrationSettings.objects.create(dev_mode=False)
+            self.assertFalse(runtime_settings.dev_mode())
+            row.dev_mode = None
+            row.save()
+            self.assertTrue(runtime_settings.dev_mode())
+
+    def test_mask_only_reveals_the_tail(self):
+        masked = runtime_settings.mask("sk-or-v1-1234567890abcdef")
+        self.assertTrue(masked.endswith("cdef"))
+        self.assertNotIn("1234567890", masked)
+        self.assertEqual(runtime_settings.mask(""), "")
+
+    def test_only_one_row_is_ever_stored(self):
+        IntegrationSettings.objects.create(openrouter_api_key="first")
+        IntegrationSettings.objects.create(openrouter_api_key="second")
+        self.assertEqual(IntegrationSettings.objects.count(), 1)
+        self.assertEqual(IntegrationSettings.load().openrouter_api_key, "second")
+
+
+
+
+class IntegrationSettingsPageTests(DeskClientMixin, TestCase):
+    """The /settings/ console Waleed uses while testing."""
+
+    def test_page_requires_the_signed_in_seat(self):
+        self.client.logout()
+        response = self.client.get("/settings/")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("/login/"))
+
+    def test_page_renders_every_integration_group(self):
+        html = self.client.get("/settings/").content.decode()
+        for probe in ("OpenRouter", "Odoo", "Twilio WhatsApp", "Save settings", ".env"):
+            self.assertIn(probe, html)
+
+    def test_saving_audits_the_user_and_normalises_values(self):
+        response = self.client.post(
+            "/settings/",
+            {
+                "openrouter_api_key": "sk-or-v1-test",
+                "odoo_url": "https://test.odoo.com/",
+                "odoo_db": "test-db",
+                "odoo_username": "waleed@example.com",
+                "odoo_api_key": "odoo-secret",
+                "dev_mode": "True",
+                "twilio_account_sid": "AC123",
+                "twilio_auth_token": "twilio-secret",
+                "twilio_whatsapp_from": "+14155238886",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Integration settings saved.")
+
+        row = IntegrationSettings.load()
+        self.assertEqual(row.openrouter_api_key, "sk-or-v1-test")
+        self.assertEqual(row.odoo_url, "https://test.odoo.com")               # trailing / trimmed
+        self.assertEqual(row.twilio_whatsapp_from, "whatsapp:+14155238886")   # prefix added
+        self.assertTrue(row.dev_mode)
+        self.assertEqual(row.updated_by, self.desk_user)
+
+    def test_secrets_are_never_rendered_back_to_the_page(self):
+        IntegrationSettings.objects.create(openrouter_api_key="sk-or-v1-super-secret-9876")
+        html = self.client.get("/settings/").content.decode()
+        self.assertNotIn("super-secret", html)
+        self.assertIn("9876", html)                                   # masked tail only
+
+    def test_blank_secret_keeps_the_value_already_stored(self):
+        IntegrationSettings.objects.create(openrouter_api_key="keep-me-1234")
+        self.client.post("/settings/", {"odoo_db": "just-the-db"})
+        row = IntegrationSettings.load()
+        self.assertEqual(row.openrouter_api_key, "keep-me-1234")
+        self.assertEqual(row.odoo_db, "just-the-db")
+
+    def test_clear_checkbox_falls_back_to_the_environment(self):
+        IntegrationSettings.objects.create(openrouter_api_key="remove-me-1234")
+        self.client.post("/settings/", {"clear_openrouter_api_key": "on"})
+        self.assertEqual(IntegrationSettings.load().openrouter_api_key, "")
+
+
+class IntegrationConsumerTests(TestCase):
+    """The OpenRouter / Odoo / Twilio clients read the resolved values."""
+
+    def test_odoo_client_uses_saved_credentials(self):
+        IntegrationSettings.objects.create(
+            odoo_url="https://saved.odoo.com/",
+            odoo_db="saved-db",
+            odoo_username="user@example.com",
+            odoo_api_key="saved-key",
+        )
+        config = odoo_client._config()
+        self.assertEqual(config["url"], "https://saved.odoo.com")
+        self.assertEqual(config["db"], "saved-db")
+        self.assertEqual(config["api_key"], "saved-key")
+
+    def test_odoo_client_reports_missing_configuration(self):
+        with patch.dict(os.environ, {
+            "ODOO_URL": "", "ODOO_DB": "", "ODOO_USERNAME": "", "ODOO_API_KEY": "",
+        }):
+            with self.assertRaises(odoo_client.OdooError):
+                odoo_client._config()
+
+    def test_extractor_refuses_to_run_without_a_key(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):
+            with self.assertRaises(RuntimeError):
+                extractor._client()
+
+    def test_extractor_rebuilds_its_client_when_the_key_changes(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "key-one"}):
+            first = extractor._client()
+        IntegrationSettings.objects.create(openrouter_api_key="key-two")
+        second = extractor._client()
+        self.assertIsNot(first, second)
+        self.assertEqual(len(extractor._clients), 1)
+
+    def test_twilio_client_uses_saved_credentials(self):
+        IntegrationSettings.objects.create(
+            twilio_account_sid="ACsaved",
+            twilio_auth_token="tok-saved",
+            twilio_whatsapp_from="whatsapp:+10000000000",
+        )
+        with patch("assistant.services.twilio_client.requests.post") as post:
+            post.return_value.status_code = 201
+            post.return_value.json.return_value = {"sid": "SM123"}
+            sid = twilio_client.send_whatsapp("whatsapp:+966500000000", "hi")
+
+        self.assertEqual(sid, "SM123")
+        self.assertIn("ACsaved", post.call_args.args[0])
+        self.assertEqual(post.call_args.kwargs["auth"], ("ACsaved", "tok-saved"))
+        self.assertEqual(post.call_args.kwargs["data"]["From"], "whatsapp:+10000000000")
