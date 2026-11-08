@@ -210,8 +210,7 @@ class ConversationFlowTests(TestCase):
         self._say("haikal.ai", brand="haikal.ai")
         self._say("youtube", platform="youtube")
         self._say("integration", format="integration")
-        self._say("skip")                                  # budget
-        self._say("no discount", requested_discount_pct=0)  # discount
+        self._say("skip")                                  # budget skipped
 
     def test_name_only_answer_reasks_for_email(self):
         self._seed_to_contact()
@@ -238,11 +237,55 @@ class ConversationFlowTests(TestCase):
         self._say("skip")
         self.assertEqual(self._stage(), "confirm")
 
+    def test_discount_is_not_offered_when_the_budget_already_fits(self):
+        """A customer who can pay the full price is never nudged into a discount."""
+        self._say("haikal.ai", brand="haikal.ai")
+        self._say("youtube", platform="youtube")
+        self._say("integration", format="integration")
+        reply = self._say("budget 60000")            # 60,000 ≥ 45,000 → full price
+        self.assertEqual(self._stage(), "contact")
+        self.assertNotIn("discount", reply.lower())
+        state = ConversationState.objects.get(phone=self.PHONE).partial_request
+        self.assertEqual(state["requested_discount_pct"], 0)
+
+    def test_discount_is_not_offered_when_the_budget_is_skipped(self):
+        self._seed_to_contact()                      # budget skipped → contact
+        self.assertEqual(self._stage(), "contact")
+
+    def test_discount_is_offered_when_the_budget_is_short(self):
+        self._say("haikal.ai", brand="haikal.ai")
+        self._say("youtube", platform="youtube")
+        self._say("integration", format="integration")
+        reply = self._say("budget 40000")            # 45,000 - 15% = 38,250 → closable
+        self.assertEqual(self._stage(), "discount")
+        self.assertIn("40,000", reply)
+        self.assertIn("maximum discount available", reply.lower())
+
+    def test_no_discount_question_when_the_cap_cannot_reach_the_budget(self):
+        """Budget far too low → the discount would not help, so don't ask."""
+        self._say("haikal.ai", brand="haikal.ai")
+        self._say("youtube", platform="youtube")
+        self._say("integration", format="integration")
+        reply = self._say("budget 20000")            # best possible is 38,250
+        self.assertEqual(self._stage(), "contact")
+        self.assertNotIn("discount", reply.lower())
+
+    def test_customer_can_ask_for_a_discount_at_any_point(self):
+        self._seed_to_contact()
+        reply = self._say("can I get a discount?")
+        self.assertEqual(self._stage(), "discount")
+        self.assertIn("percentage", reply.lower())
+
+        self._say("10")
+        state = ConversationState.objects.get(phone=self.PHONE).partial_request
+        self.assertEqual(state["requested_discount_pct"], 10)
+        self.assertEqual(state["_stage"], "contact")
+
     def test_bare_yes_at_discount_asks_for_percentage(self):
         self._say("haikal.ai", brand="haikal.ai")
         self._say("youtube", platform="youtube")
         self._say("integration", format="integration")
-        self._say("skip")
+        self._say("budget 40000")                     # short budget → discount step
         reply = self._say("yes")
         self.assertEqual(self._stage(), "discount")
         self.assertIn("percentage", reply.lower())
@@ -391,7 +434,6 @@ class PlanRevisionTests(TestCase):
         self._say("x", platform="x")
         self._say("post", format="post")
         self._say("budget 20000", requested_days=30, budget_sar=20000)
-        self._say("no discount", requested_discount_pct=0)
         self._say("ali", contact_name="ali")
         self._say("ali@noon.com", email="ali@noon.com")
         return self._state()
@@ -455,6 +497,26 @@ class PlanRevisionTests(TestCase):
         self.assertIn("change it before you confirm", reply)
         self.assertIn("X", reply)
         self.assertEqual(self._state()["_stage"], "confirm")
+
+    def test_customer_can_ask_for_a_discount_at_the_summary(self):
+        """Typed instead of *2*: a discount request is honoured, not ignored."""
+        self._walk_to_confirm_on_x()
+
+        reply = self._say("can I get a discount?")
+
+        self.assertEqual(self._state()["_stage"], "discount")
+        self.assertIn("percentage", reply.lower())
+        self.assertEqual(LeadRecord.objects.count(), 0)
+
+        self._say("10")
+        self.assertEqual(self._state()["requested_discount_pct"], 10)
+        self.assertEqual(self._state()["_stage"], "confirm")
+
+    def test_no_discount_question_on_a_full_price_walk(self):
+        """The walk above never mentions a discount — the price already fits."""
+        self._walk_to_confirm_on_x()
+        self.assertNotIn("_discount_requested", self._state())
+        self.assertEqual(self._state()["requested_discount_pct"], 0)
 
     def test_revision_then_confirm_books_the_new_package(self):
         self._walk_to_confirm_on_x()

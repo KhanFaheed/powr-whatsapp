@@ -31,14 +31,19 @@ WhatsApp ──► Twilio ──► POST /webhook/  (Django view)
 ## 3. Conversation state machine
 
 ```
-collect ──► budget ──► discount ──► contact ──► confirm ──► create opportunity
+collect ──► budget ──► discount? ──► contact ──► confirm ──► create opportunity
    │           │           │            │          │
    │           │           │            │          └─ 1 yes · 2 discount · 3 cancel
    │           │           │            │             4 change package
    │           │           │            └─ name + email (phone known from WhatsApp)
-   │           │           └─ "%" · "no discount" · "0" · skip
+   │           │           └─ only when the budget is short (or the customer
+   │           │              asks): "%" · "no discount" · "0"
    │           └─ budget in SAR (+ optional duration change)
    └─ brand · platform · format — asks only what is missing
+
+margin rule: no discount question when the price already fits the budget —
+             the discount step runs only if (a) the customer asks for one, or
+             (b) budget < price AND the cap can actually close that gap.
 
 revise loop: any plan field (platform · format · tier · duration · budget ·
              discount) sent before *1* re-prices and returns to confirm.
@@ -58,6 +63,7 @@ and Twilio retries; it is deleted once the opportunity is created or the user ca
 | **LLM extracts, Python calculates** | A quote can never disagree with the sheet; money logic is testable offline |
 | **Nullable schema, never guess** | Unstated fields stay `null`; the bot asks instead of defaulting to `0` |
 | **Ask only what's missing** | One short question per message, echoing what was understood |
+| **Discount only on demand** | A discount is never volunteered: the bot asks only when the customer brings it up or the budget is short — protecting margin on deals that would close at full price |
 | **Confirm before CRM write** | The pipeline only holds agreed conversations; a natural insertion point for handover |
 | **Two escalation rules** | (a) discount above cap, (b) budget below the cheapest achievable price → human with a summary |
 | **Language = conversation property** | Ambiguous inputs (`1`, `60 days`, mixed AR+email) keep the established language |

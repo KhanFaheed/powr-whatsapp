@@ -61,14 +61,15 @@ Bot: 📊 YouTube — Integration · Tier B
      • Duration: 60 days
      • Estimated price: 54,000 SAR          ← YT-INT-B: 45,000 + 20% for the 2nd month
      Now, what's your approximate budget in SAR? … ✓ (already provided → skipped)
-You: بدون خصم
-Bot: Would you like to request a discount? → ✓ 0%
 You: اسمي نون ops@noon.com
 Bot: 📋 Quote summary … 💰 Total: 54,000 SAR  ✅ Within your budget (100,000 SAR)
      1️⃣ Yes  2️⃣ Discount  3️⃣ Cancel  4️⃣ Change package
 You: 1
 Bot: 📋 Your Quote (YT-INT-B) … 📝 Reference: #<odoo lead id>
 ```
+
+**No discount is ever offered here** — the price already fits the budget (see
+[discount policy](#4-design-decisions--trade-offs)). The customer can still ask for one, or pick *2*.
 
 **Expected:** one opportunity in Odoo with brand, expected revenue `54,000`, phone, email and the
 full quote breakdown in the description; the reply carries the reference number.
@@ -83,9 +84,7 @@ Bot: • Which platform? (YouTube, Instagram, TikTok, Snapchat, X)
 You: نريده على إنستقرام ريل
 Bot: 📊 Instagram — Reel · Tier B … (estimated 18,000 SAR) … what's your budget?
 You: تخطي                               ← skipping the budget is allowed
-Bot: Would you like to request a discount?
-You: بدون خصم
-Bot: 📇 contact details…
+Bot: 📇 contact details…                 ← no budget, so no discount question either
 You: تخطي
 Bot: 📋 Quote summary … Total: 18,000 SAR (no budget line, because none was given)
 ```
@@ -193,13 +192,19 @@ Twilio WhatsApp  ──►  POST /webhook/            (assistant/views.py)
 ### Conversation state machine
 
 ```
-collect ──► budget ──► discount ──► contact ──► confirm ──► create lead
+collect ──► budget ──► discount? ──► contact ──► confirm ──► create lead
    │            │           │           │           │
    │            │           │           │           └─ 1 yes · 2 discount · 3 cancel
    │            │           │           └─ full name + email (phone comes from WhatsApp)
-   │            │           └─ "X%" · "no discount" · "0"
+   │            │           └─ ONLY when the budget is short or the customer asks:
+   │            │              "X%" · "no discount" · "0"
    │            └─ budget in SAR + optional duration change ("60 days")
    └─ brand · platform · format  (asks only the missing ones)
+
+Margin rule: when the price already fits the stated budget, the discount
+question is skipped entirely (no budget given → also skipped). A discount is
+discussed only if (a) the customer asks for one, or (b) budget < price AND the
+package's maximum discount can actually close the gap.
 
 Short-circuit: if the discount is already above the cap, budget/discount
 questions are skipped and the flow jumps to contact → summary → handover.
@@ -225,6 +230,21 @@ become `0`, which is what usually produces wrong quotes in these bots.
 Required fields are only `brand`, `platform`, `format`. Budget, discount, duration and contact
 are *qualifying* questions asked in one short message each; the flow never asks for something
 the customer already said in the same message (Case A skips the budget question).
+
+**3b. The discount is never volunteered — it protects the margin.**
+The bot does **not** ask "would you like a discount?" on every conversation. It only raises the
+topic when one of two things is true:
+
+- the customer asked for a discount (in any turn — "can I get a discount?" is understood and the
+  percentage is collected, the same as picking menu option *2*), or
+- the stated budget is **below** the package price **and** the package's maximum discount can
+  actually close that gap (e.g. 45,000 SAR vs a 40,000 SAR budget with a 15% cap → the bot shows
+  the 5,000 SAR gap, the cap and the best possible price, then asks for the percentage).
+
+Everything else stays at full price, silently (`requested_discount_pct = 0`):
+a customer who can pay the list price is never nudged into asking for less. When even the cap
+cannot reach the budget the question is skipped too — a discount would not help, so the flow goes
+straight to contact/summary and escalates to a human instead of wasting a turn.
 
 **4. Confirm before writing to the CRM.**
 A quote is a conversation, not a commitment. The lead is created only after the customer replies
@@ -585,8 +605,9 @@ python manage.py check            # Django system checks
 `python manage.py test assistant` runs the regression suite: platform/format/tier
 normalisation, numeric coercion, email validation, `QuoteRequest` gating, the price-sheet
 formulas for cases A/B/C, and the conversation flow (including "name-only answer re-asks for
-the email", "bare *yes* at the discount step asks for the percentage", and "no lead is created
-before confirmation"). It needs no network access and no Odoo — the LLM is stubbed.
+the email", "no discount is offered when the budget already fits", "the discount step runs only
+when the budget is short", "bare *yes* at the discount step asks for the percentage", and
+"no lead is created before confirmation"). It needs no network access and no Odoo — the LLM is stubbed.
 
 `dev_test.py` drives the **real** `handle_message()` (same code path as WhatsApp) and prints the
 full transcript, so it doubles as a regression harness for the conversation flow.

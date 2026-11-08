@@ -348,6 +348,19 @@ def _max_discounted_price(req, quote):
     return round(gross * (1 - row["max_discount_pct"] / 100), 2)
 
 
+def _discount_can_close_the_gap(req, quote):
+    """True when the package's maximum discount can bring the price within budget.
+
+    Used to decide whether a discount is worth discussing at all: when even the
+    cap cannot reach the budget, asking for a percentage only wastes a turn.
+    """
+    budget = req.get("budget_sar")
+    best = _max_discounted_price(req, quote)
+    if not budget or best is None:
+        return False
+    return best <= budget
+
+
 def _needs_human_escalation(req, quote):
     """Return (bool, reason) when a human (sales) must handle the deal.
 
@@ -547,8 +560,9 @@ def _change_notice(changes, lang="en"):
 def handle_message(phone, text):
     """Main entry point.
 
-    Flow: collect details -> show estimate & ask budget -> ask discount
-          -> show summary -> ask confirmation -> only THEN create the lead.
+    Flow: collect details -> show estimate & ask budget -> (discount only when
+          the budget is short or the customer asks for one) -> contact details
+          -> summary -> confirmation -> only THEN create the lead.
     """
     state, _ = ConversationState.objects.get_or_create(phone=phone)
     partial = dict(state.partial_request or {})
@@ -593,6 +607,11 @@ def handle_message(phone, text):
         disc = _discount_from_text(text)
         if disc is not None:
             merged["requested_discount_pct"] = disc
+            merged.pop("_discount_requested", None)
+        else:
+            # "can I get a discount?" without a number -> the percentage is the
+            # only thing missing, so we ask for it (customer-initiated only).
+            merged["_discount_requested"] = True
 
     if not extracted.get("platform"):
         platform_guess = _platform_from_text(text)
@@ -611,9 +630,11 @@ def handle_message(phone, text):
         disc = _discount_from_text(text)
         if disc is not None:
             merged["requested_discount_pct"] = disc
+            merged.pop("_discount_requested", None)
         elif merged.get("requested_discount_pct") is None:
             if _is_skip(text) or answer is False:
                 merged["requested_discount_pct"] = 0.0
+                merged.pop("_discount_requested", None)
             elif merged.get("_discount_asks", 0) < _MAX_DISCOUNT_ASKS:
                 # "yes" without a number -> ask once for the percentage
                 merged["_discount_asks"] = merged.get("_discount_asks", 0) + 1
@@ -669,8 +690,9 @@ def handle_message(phone, text):
         if not revising and choice in ("2", "٢"):
             merged["_stage"] = STAGE_DISCOUNT
             merged.pop("requested_discount_pct", None)  # ask fresh
+            merged.pop("_discount_requested", None)
             _save_state(state, merged)
-            return _ask_discount(merged, lang)
+            return _discount_question(merged, lang)
         if not revising and (choice in ("3", "٣") or answer is False):
             state.delete()
             return _cancelled(lang)
@@ -678,6 +700,13 @@ def handle_message(phone, text):
             merged["_stage"] = STAGE_CONFIRM
             _save_state(state, merged)
             return _ask_change_plan(merged, lang)
+        # "can I get a discount?" typed instead of picking option 2
+        if not revising and merged.get("_discount_requested"):
+            merged["_stage"] = STAGE_DISCOUNT
+            merged.pop("_discount_requested", None)
+            merged.pop("requested_discount_pct", None)  # ask fresh
+            _save_state(state, merged)
+            return _discount_question(merged, lang)
         # Anything else (including a revision) -> re-price + re-show the summary
 
     # ---------------- still collecting required fields ----------------
@@ -712,13 +741,28 @@ def handle_message(phone, text):
         _save_state(state, merged)
         return _reply(_ask_budget(merged, quote, lang))
 
-    if (stage in (STAGE_COLLECT, STAGE_BUDGET) and not discount_above_cap
-            and merged.get("requested_discount_pct") is None):
+    # A discount is never offered "just in case" — that hands away margin for
+    # nothing. It is discussed only when
+    #   (a) the customer asked for one (and the percentage is still missing), or
+    #   (b) the stated budget is below the package price AND the maximum allowed
+    #       discount can actually close that gap.
+    budget = merged.get("budget_sar")
+    price = quote.get("final")
+    budget_short = bool(budget) and price is not None and price > budget
+
+    asked_by_customer = merged.pop("_discount_requested", False)
+    gap_can_be_closed = (
+        budget_short
+        and stage in (STAGE_COLLECT, STAGE_BUDGET)
+        and _discount_can_close_the_gap(merged, quote)
+    )
+
+    if not discount_above_cap and stage != STAGE_DISCOUNT and (asked_by_customer or gap_can_be_closed):
         merged["_stage"] = STAGE_DISCOUNT
         _save_state(state, merged)
-        return _reply(_ask_discount(merged, lang))
+        return _reply(_ask_discount(merged, quote, lang))
 
-    # Asked for a discount but got no number -> assume no discount
+    # No discount was asked for and none is needed -> full price, quietly.
     if merged.get("requested_discount_pct") is None and not discount_above_cap:
         merged["requested_discount_pct"] = 0.0
 
@@ -911,10 +955,35 @@ def _ask_budget(req, quote, lang="en"):
     )
 
 
-def _ask_discount(req, lang="en"):
-    """Ask whether the user wants a discount."""
+def _ask_discount(req, quote=None, lang="en"):
+    """Ask for a discount percentage — only when it is actually needed.
+
+    Called in two situations: the customer asked for a discount, or the stated
+    budget is below the package price. In the second case the gap and the cap
+    are spelled out so the customer sees exactly why a discount is on the table.
+    """
+    quote = quote or {}
     budget = req.get("budget_sar")
+    price = quote.get("final")
+    cap = quote.get("max_discount_pct")
+    best = _max_discounted_price(req, quote) if price is not None else None
+    gap = None
+    if budget and price:
+        gap = price - budget
+
     if lang == "ar":
+        if gap and gap > 0:
+            lines = [
+                f"💰 ميزانيتك: {budget:,.0f} SAR",
+                f"📊 سعر هذه الباقة: {price:,.0f} SAR (أعلى بـ {gap:,.0f} SAR)",
+                "",
+            ]
+            if cap:
+                lines.append(f"أقصى خصم متاح على هذه الباقة {cap}%"
+                             + (f" (أفضل سعر {best:,.0f} SAR)" if best else "") + ".")
+            lines.append("ما نسبة الخصم التي تريدها؟ اذكر النسبة فقط (مثلاً 10%).")
+            lines.append("وإذا كان السعر الحالي مناسباً اكتب *بدون خصم* أو *0*.")
+            return "\n".join(lines)
         head = "👍 تمام."
         if budget:
             head += f"\n💰 الميزانية: {budget:,.0f} SAR"
@@ -924,6 +993,20 @@ def _ask_discount(req, lang="en"):
             f"إذا نعم، اذكر النسبة (مثلاً 10%).\n"
             f"إذا لا، اكتب *بدون خصم* أو *0*."
         )
+
+    if gap and gap > 0:
+        lines = [
+            f"💰 Your budget: {budget:,.0f} SAR",
+            f"📊 This package: {price:,.0f} SAR (over by {gap:,.0f} SAR)",
+            "",
+        ]
+        if cap:
+            lines.append(f"The maximum discount available on this package is {cap}%"
+                         + (f" (best price {best:,.0f} SAR)" if best else "") + ".")
+        lines.append("How much discount would you like? Just send the percentage (e.g. 10%).")
+        lines.append("If the current price works for you, type *no discount* or *0*.")
+        return "\n".join(lines)
+
     head = "👍 Noted."
     if budget:
         head += f"\n💰 Budget: {budget:,.0f} SAR"
@@ -933,6 +1016,16 @@ def _ask_discount(req, lang="en"):
         f"If yes, tell me the percentage (e.g. 10%).\n"
         f"If not, type *no discount* or *0*."
     )
+
+
+def _discount_question(req, lang="en"):
+    """Discount question re-priced at 0% (used before the summary exists)."""
+    quote = build_quote(
+        req["platform"], req["format"],
+        req.get("creator_tier") or DEFAULT_TIER,
+        req.get("requested_days") or 30, 0.0,
+    )
+    return _ask_discount(req, quote, lang)
 
 
 def _quote_lines(req, quote, lang="en", format_substituted=False):

@@ -74,15 +74,13 @@ python manage.py runserver 8000
 > thirty days, plus twenty percent for the second month — fifty-four thousand. That is the
 > YT-INT-B row of your sheet."
 
-**2.** `بدون خصم`
+**2.** `اسمي نون ops@noon.com`
 
-> "Because the budget was already stated it doesn't ask again; it moves to the discount question."
+> "Because the budget was already stated it doesn't ask again — and it does **not** ask about a
+> discount either: fifty-four thousand already fits the hundred-thousand budget, so the quote
+> stays at full price. It just captures contact details — the WhatsApp number is already known."
 
-**3.** `اسمي نون ops@noon.com`
-
-> "Then it captures contact details — the WhatsApp number is already known."
-
-**4.** `1`
+**3.** `1`
 
 > "And here's the important part: it asks for confirmation before writing anything to the CRM,
 > so the pipeline only ever contains agreed, qualified conversations. On confirm it creates the
@@ -116,15 +114,15 @@ python manage.py runserver 8000
 
 > "And when I skip, it simply carries on — the budget stays empty. It doesn't become zero, it
 > doesn't become a default, and the quote isn't distorted. That's the 'no invented values'
-> requirement."
+> requirement. With no budget there is nothing to fill a discount gap, so it doesn't ask about
+> a discount at all."
 
-**4.** `بدون خصم`
-**5.** `تخطي`  *(skip contact)*
+**4.** `تخطي`  *(skip contact)*
 
 > "It collects what it can, quotes the Instagram reel row — eighteen thousand — and only creates
 > the lead once I confirm."
 
-**6.** `1`
+**5.** `1`
 
 > "Eighteen thousand: that's the Instagram reel, Tier B, thirty days, no discount — straight from
 > the sheet."
@@ -204,7 +202,6 @@ python manage.py runserver 8000
 ```
 # Case A
 مرحبا، أنا من شركة نون. نريد حملة إعلانية على يوتيوب (تكامل) لمدة شهرين. الميزانية 100,000 ريال.
-بدون خصم
 اسمي نون ops@noon.com
 1
 
@@ -212,7 +209,6 @@ python manage.py runserver 8000
 السلام عليكم، نحن من شركة STC نريد إعلان
 نريده على إنستقرام ريل
 تخطي
-بدون خصم
 تخطي
 1
 
